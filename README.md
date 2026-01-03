@@ -76,7 +76,9 @@ make clean
 
 ### 🔐 Security & Auth
 
-Boxed supports API Key authentication. You can set the key via the `--api-key` flag or `BOXED_API_KEY` environment variable.
+Boxed uses a **Bring Your Own Key (BYOK)** model. Since you run your own instance, you define the secret key yourself at startup. 
+
+You can set the key via the `--api-key` flag or `BOXED_API_KEY` environment variable:
 
 All CLI commands and SDKs must provide this key:
 ```bash

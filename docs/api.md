@@ -4,10 +4,25 @@ This document provides a detailed reference for the Boxed REST API. All requests
 
 ## 🔐 Security & Authentication
 
-Boxed uses API Key authentication. If a key is configured on the server, all requests must include the `X-Boxed-API-Key` header or the `api_key` query parameter.
+Boxed uses a **Bring Your Own Key (BYOK)** model. Since you run your own Boxed instance, you define the secret key at startup.
 
-**Headers:**
-- `X-Boxed-API-Key`: Your secret API key.
+### Setting the Key
+Set the `BOXED_API_KEY` environment variable before starting the server:
+
+```bash
+# 1. Generate a secure secret
+export BOXED_API_KEY=$(openssl rand -hex 32)
+echo "Your API Key is: $BOXED_API_KEY"
+
+# 2. Start Boxed
+./bin/boxed serve
+```
+
+### Authentication
+Once configured, all requests must include the key via the `X-Boxed-API-Key` header or the `api_key` query parameter.
+
+**Required Headers:**
+- `X-Boxed-API-Key`: The secret you defined at startup.
 - `Content-Type`: `application/json` (for POST requests).
 
 ---
