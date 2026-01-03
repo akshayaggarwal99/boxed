@@ -110,7 +110,9 @@ pip install -e ./sdk/python
 
 ---
 
-### 3. Execute Code (Python Example)
+### 💻 SDK Examples
+
+#### Python
 ```python
 from boxed_sdk import Boxed
 
