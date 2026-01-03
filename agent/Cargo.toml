@@ -1,0 +1,55 @@
+[package]
+name = "boxed-agent"
+version = "0.1.0"
+edition = "2021"
+description = "Lightweight agent that runs inside Boxed sandboxes to execute commands and stream results"
+authors = ["Akshay Aggarwal <akshayaggarwal99@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/akshayaggarwal99/boxed"
+keywords = ["sandbox", "container", "agent", "execution", "microvm"]
+categories = ["command-line-utilities", "development-tools"]
+
+# Optimize for binary size - critical for agent embedded in sandboxes
+[profile.release]
+opt-level = "z"        # Optimize for size
+lto = true             # Link-time optimization
+codegen-units = 1      # Single codegen unit for better optimization
+panic = "abort"        # Smaller binary, no unwinding
+strip = true           # Strip symbols
+
+[dependencies]
+# Async runtime - The industry standard
+tokio = { version = "1.40", features = ["full", "process", "signal", "sync", "io-util", "net"] }
+
+# Serialization - Crucial for JSON-RPC protocol
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# File system watching - Artifact detection
+notify = { version = "6.1", default-features = false, features = ["macos_kqueue"] }
+
+# Async utilities
+futures = "0.3"
+
+# Base64 encoding for artifact streaming
+base64 = "0.22"
+
+# MIME type detection for artifacts
+mime_guess = "2.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3"
+
+[[bin]]
+name = "boxed-agent"
+path = "src/main.rs"

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" fill="none" role="img" aria-label="Boxed Logo">
+  <defs>
+    <style>
+      /* Existing styles for the icon mark */
+      .boxed-primary { stroke: #0F172A; stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; }
+      .boxed-accent { stroke: #3B82F6; stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; }
+      
+      /* New style for the text on the right */
+      .boxed-logotype { 
+        fill: #0F172A; /* Match the primary dark color */
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; /* Clean, modern sans-serif */
+        font-weight: 800; /* Extra bold for impact */
+        font-size: 64px; /* Size balanced with the icon height */
+        dominant-baseline: central; /* Vertically center on the line */
+      }
+    </style>
+  </defs>
+
+  <g id="icon-mark">
+    <rect x="15" y="15" width="90" height="90" rx="16" class="boxed-primary" fill="none"/>
+    <path d="M 45,40 L 70,60 L 45,80" class="boxed-accent"/>
+  </g>
+
+  <text x="130" y="60" class="boxed-logotype">boxed</text>
+</svg>

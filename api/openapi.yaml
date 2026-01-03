@@ -1,0 +1,261 @@
+openapi: 3.0.0
+info:
+  title: Boxed API
+  description: The Sovereign Code Execution Engine for AI Agents
+  version: 0.2.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/v1
+    description: Local Development Server
+
+components:
+  schemas:
+    # Feature 1 & 2: Added 'network_policy' and 'context'
+    SandboxConfig:
+      type: object
+      required: [template]
+      properties:
+        template:
+          type: string
+          example: "python:3.10-data-science"
+        timeout:
+          type: integer
+          default: 300
+          description: Auto-destroy after N seconds of inactivity
+        network_policy:
+          type: object
+          description: Control internet access for this sandbox
+          properties:
+            enable_internet:
+              type: boolean
+              default: false
+            allow_domains:
+              type: array
+              items: { type: string }
+              example: ["pypi.org", "github.com"]
+        context:
+          type: array
+          description: Files to inject immediately upon boot
+          items:
+            type: object
+            required: [path, content_base64]
+            properties:
+              path:
+                type: string
+                example: "data.csv"
+              content_base64:
+                type: string
+                description: Base64 encoded file content
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+
+    # Standard Execution
+    ExecRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+        language:
+          type: string
+          default: "python"
+        stream:
+          type: boolean
+          default: false
+          description: If true, returns a Transfer-Encoding: chunked stream of events
+    
+    ExecResponse:
+      type: object
+      properties:
+        stdout:
+          type: string
+        stderr:
+          type: string
+        exit_code:
+          type: integer
+        artifacts:
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+              mime:
+                type: string
+              data_base64:
+                type: string
+    
+    # Feature 3: Simple File Object
+    FileMetadata:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        size:
+          type: integer
+        mime_type:
+          type: string
+        last_modified:
+          type: string
+          format: date-time
+
+    SandboxInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        state:
+          type: string
+          enum: [creating, ready, stopping, stopped, error]
+        created_at:
+          type: string
+          format: date-time
+        driver_type:
+          type: string
+
+paths:
+  /sandbox:
+    get:
+      summary: List all active sandboxes
+      responses:
+        '200':
+          description: List of sandboxes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sandboxes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SandboxInfo'
+
+    post:
+      summary: Spawn a sandbox (with optional files & network rules)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SandboxConfig'
+      responses:
+        '201':
+          description: Sandbox Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sandbox_id:
+                    type: string
+                  status:
+                    type: string
+                  ws_url: 
+                    type: string
+                    description: "Real-time log stream URL (ws://...)"
+
+  /sandbox/{id}:
+    delete:
+      summary: Terminate a sandbox
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Sandbox terminated
+
+  /sandbox/{id}/exec:
+    post:
+      summary: Execute code
+      description: Runs code. If 'stream' is true, response is a stream of JSON events.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecRequest'
+      responses:
+        '200':
+          description: Execution Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecResponse'
+                
+  /sandbox/{id}/files:
+    get:
+      summary: List files in the sandbox /output directory
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: path
+          in: query
+          schema: { type: string, default: "/" }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileMetadata'
+    
+    post:
+      summary: Upload a file to the sandbox (mid-session)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                path:
+                  type: string
+                  default: "/uploads"
+      responses:
+        '200':
+          description: File uploaded
+
+  /sandbox/{id}/files/content:
+    get:
+      summary: Download a specific file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: path
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Binary file stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary

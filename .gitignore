@@ -1,0 +1,58 @@
+# Binaries
+bin/
+*.exe
+*.test
+*.out
+
+# Go
+vendor/
+go.work
+go.work.sum
+
+# Rust
+agent/target/
+**/*.rs.bk
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Boxed Runtime
+/tmp/
+/output/
+*.socket
+*.sock
+
+# Environment
+.env
+.env.*
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/venv/
+**/.venv/
+**/*.egg-info/
+sdk/python/dist/
+sdk/python/build/
+.pytest_cache/
+
+# TypeScript / Node
+**/node_modules/
+sdk/typescript/dist/
+.npm/
+
+# Agentic / Brain
+.agent/*
+brain/
+
+# Project Specific Artifacts (from agent work)
+cli_test.txt
+blueprint.md
+implementation_plan.md
+RELEASE.md
+spec.md
+walkthrough.md
