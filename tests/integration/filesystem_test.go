@@ -104,8 +104,11 @@ func TestFilesystem(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var files []driver.FileEntry
-	json.NewDecoder(resp.Body).Decode(&files)
+	var listResp struct {
+		Files []driver.FileEntry `json:"files"`
+	}
+	json.NewDecoder(resp.Body).Decode(&listResp)
+	files := listResp.Files
 
 	// Should see hello.txt and upload.txt
 	foundHello := false
@@ -145,7 +148,8 @@ func TestFilesystem(t *testing.T) {
 	// Verify it exists in List
 	resp, err = http.Get(fmt.Sprintf("%s/sandbox/%s/files?path=/workspace", BaseURL, id))
 	require.NoError(t, err)
-	json.NewDecoder(resp.Body).Decode(&files)
+	json.NewDecoder(resp.Body).Decode(&listResp)
+	files = listResp.Files
 
 	foundPlot := false
 	for _, f := range files {
