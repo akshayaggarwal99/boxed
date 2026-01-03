@@ -2,6 +2,16 @@
 
 This document provides a detailed reference for the Boxed REST API. All requests should be made to the base URL (default: `http://localhost:8080/v1`).
 
+## 🔐 Security & Authentication
+
+Boxed uses API Key authentication. If a key is configured on the server, all requests must include the `X-Boxed-API-Key` header or the `api_key` query parameter.
+
+**Headers:**
+- `X-Boxed-API-Key`: Your secret API key.
+- `Content-Type`: `application/json` (for POST requests).
+
+---
+
 ## 🏗️ Sandbox Management
 
 ### Create Sandbox
@@ -19,6 +29,7 @@ Creates a new ephemeral sandbox.
 **Example (curl):**
 ```bash
 curl -X POST http://localhost:8080/v1/sandbox \
+  -H "X-Boxed-API-Key: your-secret-key" \
   -H "Content-Type: application/json" \
   -d '{
     "template": "python:3.10-slim",

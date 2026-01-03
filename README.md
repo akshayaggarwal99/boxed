@@ -131,6 +131,13 @@ session.close()
 
 ---
 
+## 📚 Documentation
+
+- **[REST API Reference](docs/api.md)** — Detailed specification of all endpoints.
+- **[OpenAPI Spec](api/openapi.yaml)** — Raw OpenAPI 3.0 definition.
+
+---
+
 ## 🛠️ Architecture
 
 Boxed uses a **Control Plane vs Data Plane** architecture.
