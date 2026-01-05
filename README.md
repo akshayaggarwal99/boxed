@@ -4,7 +4,7 @@
 
 # Boxed
 
-**The Sovereign Code Execution Engine for AI Agents.**
+**The Sovereign Code Execution Engine for AI Agents. Run untrusted code safely—locally or in the cloud—using Docker, Firecracker, or Wasm.**
 
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev)
 [![Rust](https://img.shields.io/badge/Rust-1.75+-DEA584?logo=rust)](https://www.rust-lang.org)
