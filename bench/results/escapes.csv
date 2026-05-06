@@ -1,0 +1,13 @@
+test,result
+mount_host,DENIED
+proc1_root,SUCCEEDED
+docker_sock,SUCCEEDED
+modprobe,DENIED
+raw_socket,SUCCEEDED
+setns,DENIED
+rfc1918,DENIED
+imds,DENIED
+fork_bomb,SUCCEEDED
+mem_bomb,SUCCEEDED
+ro_root,SUCCEEDED
+ptrace_host,SUCCEEDED

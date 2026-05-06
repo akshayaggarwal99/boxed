@@ -56,3 +56,18 @@ implementation_plan.md
 RELEASE.md
 spec.md
 walkthrough.md
+
+# Paper / bench artifacts
+paper/main.pdf
+paper/main.aux
+paper/main.bbl
+paper/main.blg
+paper/main.log
+paper/main.out
+paper/main.fls
+paper/main.fdb_latexmk
+paper/chktex.log
+dist/
+bench/bin/
+bench/results/*.csv
+.claude/settings.local.json
