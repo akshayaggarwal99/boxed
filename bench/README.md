@@ -4,8 +4,8 @@ Reproducibility for the *Boxed: A Sovereign, Polyglot Sandbox Substrate* paper.
 
 ## Hardware reported in the paper
 
-- Apple M-series, macOS 15, Docker Desktop 4.x (primary)
-- Optional re-run on Linux 6.x bare metal (Hetzner CX22 or similar)
+- MacBook Pro, Apple M1 Pro, 16 GB unified memory, macOS, Docker Desktop (primary; what the paper reports)
+- Optional re-run on a quiesced Linux host (recommended for cleaner numbers)
 
 ## Quickstart
 
@@ -33,4 +33,4 @@ make all
 
 - `BOXED_API_KEY` — must match what `boxed serve` was started with
 - `GEMINI_API_KEY` — only for `agent` scenario
-- `GEMINI_MODEL` — optional override (default `gemini-2.0-flash`)
+- `GEMINI_MODEL` — optional override (default `gemini-2.5-flash`)

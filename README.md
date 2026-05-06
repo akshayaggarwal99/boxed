@@ -28,12 +28,14 @@ Building an AI Agent that writes code? You have a problem.
 
 ## ✨ Features
 
-- **🔒 Secure by Default** — Defense-in-depth isolation (Docker now, Firecracker planned).
-- **🛡️ API Authentication** — Hardened endpoints with API Key support.
-- **⚡ Sub-second Startup** — Ephemeral environments ready in milliseconds.
-- **📁 First-class Artifacts** — Auto-magic handling of generated files (images, PDFs, datasets).
-- **🔌 Polyglot SDKs** — First-class support for TypeScript and Python.
-- **🌐 Network Control** — Strict egress filtering to keep your network safe.
+- **🔒 Pluggable isolation** — Docker driver ships today; Firecracker and Wasm drivers stubbed behind a single `Driver` interface.
+- **🛡️ Bring-Your-Own-Key auth** — operator-chosen API key via `X-Boxed-API-Key`. No vendor accounts.
+- **⚡ Sub-second cold start** — 303 ms median create+exec+destroy on a developer laptop (see paper).
+- **📁 First-class artifacts** — in-VM Rust agent streams stdout, stderr, and emitted files (images, PDFs, datasets) over JSON-RPC.
+- **🔌 Polyglot SDKs** — first-class support for TypeScript and Python.
+- **🌐 Network policy** — coarse `EnableNetworking` toggle today (Docker `none` vs bridge); fine-grained egress allow-lists are on the roadmap.
+
+> **Honest scoping:** the current Docker driver enforces a `Memory` cgroup (default 512 MiB) and runs `/tmp` and `/output` as `tmpfs`, but leaves the container rootfs writable, retains the default Linux capability set (no `CapDrop: ALL`), does not set `PidsLimit`, and permits in-PID-namespace `ptrace`. We report the full escape probe in the [paper](paper/main.pdf) and close those gaps in the planned Firecracker driver.
 
 ---
 
@@ -140,24 +142,67 @@ session.close()
 
 ---
 
+## 📄 Paper
+
+A preprint describing Boxed's design and an open benchmark harness is available in this repo:
+
+- **PDF:** [`paper/main.pdf`](paper/main.pdf)
+- **Source:** [`paper/main.tex`](paper/main.tex)
+- **Benchmark harness (reproducible):** [`bench/`](bench/)
+- **Raw experiment data:** [`bench/results/*.csv`](bench/results/)
+
+Headline numbers (MacBook Pro M1 Pro, 16 GB, macOS, Docker Desktop; n=200 cold-start trials):
+
+| Metric                         | Value             |
+|--------------------------------|-------------------|
+| Median create+exec+destroy     | **303 ms**        |
+| p95 / p99                      | 395 ms / 495 ms   |
+| Peak throughput                | 9.8 sandboxes/s   |
+| Idle agent RSS (median)        | 0.4 MiB           |
+| Behavioural escape probe       | 5/12 denied       |
+| HumanEval-style agent trace    | 20/20 passed      |
+
+To reproduce:
+
+```bash
+cd bench && make all   # requires `boxed serve` running and BOXED_API_KEY set
+```
+
+### Cite
+
+```bibtex
+@misc{boxed2026,
+  title  = {Boxed: A Sovereign, Polyglot Sandbox Substrate for Autonomous Code-Generating Agents},
+  author = {Kumar, Akshay},
+  year   = {2026},
+  howpublished = {\url{https://github.com/akshayaggarwal99/boxed/blob/main/paper/main.pdf}}
+}
+```
+
+---
+
 ## 🛠️ Architecture
 
 Boxed uses a **Control Plane vs Data Plane** architecture.
 
 ![Architecture Diagram](architecture.svg)
 
-*   **Control Plane (Go)**: High-performance REST API with Auth middleware.
-*   **Agent (Rust)**: Lightweight (~5MB) binary injected into every sandbox to manage lifecycle and streaming.
+*   **Control Plane (Go)**: REST API + WebSocket gateway with BYOK API-key auth (Echo, ~2.8k LOC, 12 MiB binary).
+*   **Agent (Rust)**: Lightweight 1.32 MiB stripped binary injected into every sandbox; streams stdout/stderr/artifacts over JSON-RPC.
 
 ---
 
 ## 🗺️ Roadmap
 
-- [x] **Phase 1: Enterprise Edition** (Docker Backend, SDK)
-- [x] **Phase 1.5: Sticky Sessions** (REPL Mode, WebSocket Proxy)
-- [x] **Phase 1.6: Security Hardening** (Auth, CSRF Protection)
-- [ ] **Phase 2: SaaS Edition** (Firecracker MicroVMs)
-- [ ] **Phase 4**: Public Tunneling (`*.boxed.run`)
+- [x] **Docker driver** + Go control plane + Rust in-VM agent
+- [x] **Polyglot SDKs** (TypeScript, Python)
+- [x] **Sticky sessions** (REPL mode, WebSocket proxy)
+- [x] **API-key auth** (Bring-Your-Own-Key)
+- [ ] **Hardening** — `ReadonlyRootfs`, `CapDrop: ALL`, `PidsLimit`, tighter seccomp profile, fine-grained egress allow-lists via `iptables`
+- [ ] **Firecracker driver** — MicroVMs for stronger isolation
+- [ ] **Wasm driver** — sub-millisecond cold start for compatible workloads
+- [ ] **Pool-based reuse** — warm sandboxes for sub-millisecond `exec` (see paper §6)
+- [ ] **Multi-host scheduler**
 
 ---
 

@@ -103,17 +103,18 @@ adversarial escape suite, and an end-to-end LLM-driven HumanEval-style
 trace.
 \end{itemize}
 
-On a developer laptop with typical background processes running,
-Boxed achieves a median end-to-end create+exec+destroy latency of
+On a MacBook Pro (Apple M1 Pro, 16\,GB, Docker Desktop) with typical
+background processes running, Boxed achieves a median end-to-end
+create+exec+destroy latency of
 \BoxedColdMedian{} (p95 \BoxedColdPNinetyFive{}), single-trial peak
 throughput \BoxedPeakRPS{}~sandboxes/s, and a low
 \BoxedRSSMedian{} median per-sandbox idle working set as reported by
 \texttt{docker stats}. We also report what does \emph{not} work: a
 behavioural escape probe of \BoxedEscapeTotal{} adversarial attempts
-classified \BoxedEscapeDenied{} as denied and surfaces three
-concrete hardening gaps in the current Docker driver (writable
-rootfs, no enforced memory limit, permissive ptrace) which we
-discuss in \S\ref{sec:disc} and address in the planned
+classified \BoxedEscapeDenied{} as denied and surfaces concrete
+hardening gaps in the current Docker driver (writable rootfs, full
+default capability set, no \texttt{PidsLimit}, permissive ptrace)
+which we discuss in \S\ref{sec:disc} and address in the planned
 Firecracker driver. Boxed is MIT-licensed at
 \url{https://github.com/akshayaggarwal99/boxed}.
 
@@ -236,9 +237,12 @@ them requires per-customer hardware partitioning, which is the
 operator's responsibility.
 
 \subsection{Driver Interface}
-The central abstraction in Boxed is a single Go interface,
-deliberately kept narrow so that future drivers (Firecracker, Wasm,
-Kata) can be added without changes to the control plane:
+The central abstraction in Boxed is a single Go interface whose
+sandbox-lifecycle subset is deliberately narrow so that future
+drivers (Firecracker, Wasm, Kata) can be added without changes to
+the control plane. The full interface also exposes file-injection
+and listing helpers used by the SDK, but the four lifecycle methods
+below are what every backend must provide:
 
 \begin{lstlisting}[language=Go,basicstyle=\small\ttfamily]
 type Driver interface {
@@ -298,8 +302,9 @@ per-request via the \texttt{on\_artifact} field of the
 
 \section{Implementation}\label{sec:impl}
 
-The current Boxed release comprises 2{,}789~lines of Go for the control
-plane and Docker driver and 870~lines of Rust for the in-VM agent.
+The current Boxed release comprises 2{,}374~lines of Go in
+\texttt{cmd} and \texttt{internal} (control plane, Docker driver,
+CLI helpers) and 870~lines of Rust for the in-VM agent.
 The control-plane binary weighs 12.0\,MiB and the agent binary
 1.32\,MiB stripped (consistent with the in-VM measurement reported in
 \S\ref{sec:design}). Three implementation details are worth calling out.
@@ -342,10 +347,11 @@ resistance, and end-to-end LLM-agent task latency. The harness and
 raw CSV traces are open-source alongside the paper.
 
 \paragraph{Setup.}
-All measurements are taken on an Apple~M-series laptop running
-macOS~15 with Docker~Desktop~4.x; cold-start, throughput, and
-overhead numbers are reported on a freshly restarted Docker engine and the
-\texttt{python:3.10-slim} image already pulled.
+All measurements are taken on a MacBook Pro with an Apple M1 Pro
+SoC and 16\,GB of unified memory, running macOS under Docker
+Desktop with the \texttt{arm64} \texttt{python:3.10-slim} image
+already pulled. Cold-start, throughput, and overhead numbers are
+reported on a freshly restarted Docker engine.
 The agent-trace experiment was deliberately run \emph{after} the
 other three load-generating phases to study Boxed under sustained
 pressure. Each create+exec+destroy cycle uses the
@@ -441,11 +447,15 @@ NAT topology rather than by any Boxed enforcement. With that
 caveat, the suite classifies \BoxedEscapeDenied{} of
 \BoxedEscapeTotal{} attempts (\BoxedEscapePct{}) as denied. The
 remaining attempts surface concrete hardening gaps in the present
-configuration: (i) the rootfs is mounted read-write rather than
-\texttt{readonly+tmpfs} for \texttt{/tmp}; (ii) no enforced
-\texttt{--memory} cgroup limit, allowing memory bombs to
-exhaust the container's allocation; (iii) the default seccomp
-profile permits \texttt{ptrace} within the sandbox PID namespace.
+configuration: (i) the container rootfs is writable
+(\texttt{ReadonlyRootfs} is not set); (ii) the
+\texttt{CapDrop: ALL} block is commented out, so the container
+retains the default Linux capability set rather than dropping all
+and adding back only what the workload needs; (iii) no
+\texttt{PidsLimit} cgroup is configured, allowing fork bombs to
+exhaust the host scheduler even though a \texttt{Memory} cgroup is
+enforced (default 512\,MiB); (iv) the default seccomp profile
+permits \texttt{ptrace} within the sandbox PID namespace.
 None of these gaps allowed an escape to the host in our tests,
 but each weakens the within-sandbox isolation an agent operator
 might reasonably expect. We close them in the planned
@@ -481,9 +491,9 @@ and pool-based reuse as future control-plane work.
 \end{figure}
 
 \subsection{Threats to Validity}
-All measurements were taken on a single developer laptop running
-typical background processes---a web browser, IDE, and chat
-clients---rather than a quiesced benchmark host. We did not pin
+All measurements were taken on a single MacBook Pro (M1~Pro,
+16\,GB) running typical background processes---a web browser, IDE,
+and chat clients---rather than a quiesced benchmark host. We did not pin
 Boxed's processes to dedicated cores, isolate Docker Desktop's
 LinuxKit VM, or otherwise insulate the workload from incidental
 host activity. The heavy upper tail of the cold-start distribution
@@ -504,16 +514,17 @@ picture.
 
 \paragraph{Honest limitations of the current driver.}
 The Docker driver is the only production-ready backend in this
-release. Three of the seven failed escape attempts in
+release. Several of the unblocked escape attempts in
 \S\ref{sec:eval} stem from defaults that we should and will
-tighten: a writable rootfs, no enforced memory cap, and a
-permissive in-PID-namespace ptrace policy. None of these allowed
+tighten: a writable container rootfs, the default Linux capability
+set rather than \texttt{CapDrop: ALL}, no \texttt{PidsLimit} cgroup
+to bound fork-rate, and a permissive in-PID-namespace ptrace policy. None of these allowed
 host escape in our tests, but they reduce the depth of the
 defence chain. We treat them as bugs against the current
 release; the patch set is one configuration change per item.
 
 \paragraph{macOS Docker Desktop is a hypervisor-backed Linux.}
-Our experimental harness ran on Apple silicon under Docker
+Our experimental harness ran on Apple M1~Pro under Docker
 Desktop, which is itself a Linux VM. The cold-start numbers
 (\BoxedColdMedian{} median) are fast in absolute terms but include
 the cost of round-tripping through the Docker socket inside that
