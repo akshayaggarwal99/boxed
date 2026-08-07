@@ -1,0 +1,24 @@
+\begin{table*}[t]
+\centering
+\caption{Agent-oriented sandbox runtimes (data as of 2026-05). Cold-start
+figures for systems other than Boxed are vendor claims measured under
+undisclosed conditions and are reproduced as reported, not validated by us;
+the Boxed figure is the end-to-end create+exec+destroy median of
+Section~\ref{sec:eval}.}
+\label{tab:compare}
+\footnotesize
+\begin{tabular}{@{}lllccll@{}}
+\toprule
+System & Isolation & Cold start & Pluggable & BYOK / & License & First-class \\
+       &           &            & drivers   & self-host &       & artifacts \\
+\midrule
+\textbf{Boxed (this work)} & Docker $\rightarrow$ FC$^{*}$ / Wasm$^{*}$ & \BoxedColdMedian{} (measured) & yes & yes & MIT & yes \\
+E2B~\cite{e2b}             & Firecracker            & $\sim$150\,ms (claim) & no  & limited & Apache-2.0 & yes \\
+Modal Sandbox~\cite{modal} & gVisor + Firecracker   & $\sim$1.5\,s (claim)  & no  & no      & proprietary & yes \\
+Daytona~\cite{daytona}     & Docker                 & not reported          & no  & yes     & AGPL & no \\
+Cloudflare Sandbox~\cite{cfsandbox} & V8 isolates   & $\sim$5\,ms (claim)   & limited & no & proprietary & limited \\
+\bottomrule
+\end{tabular}
+\\[2pt]
+{\footnotesize $^{*}$Stubbed; Docker is the only production-ready driver in the current Boxed release.}
+\end{table*}

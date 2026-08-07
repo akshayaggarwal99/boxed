@@ -67,7 +67,27 @@ paper/main.out
 paper/main.fls
 paper/main.fdb_latexmk
 paper/chktex.log
+
+# paper-v2: LaTeX intermediates. Boxed-IEEE.pdf is the committed artifact;
+# main.pdf is an identical copy produced by tectonic on the way there.
+paper-v2/main.pdf
+paper-v2/main.aux
+paper-v2/main.bbl
+paper-v2/main.blg
+paper-v2/main.log
+paper-v2/main.out
+# Abandoned pandoc->docx export scaffolding (lossy; use the PDF).
+paper-v2/*.docx
+paper-v2/main_docx.tex
+paper-v2/tables/*-docx.tex
+paper/*.docx
+
 dist/
 bench/bin/
 bench/results/*.csv
 .claude/settings.local.json
+
+# Rasterised TikZ + unlabelled v1 architecture art: docx-export leftovers,
+# not referenced by paper-v2/main.tex.
+paper-v2/figures/tikz_*.png
+paper-v2/figures/architecture.pdf
