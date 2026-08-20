@@ -103,13 +103,12 @@ async fn run_agent() -> Result<()> {
                                             executor::ProcessOutput::Error(e) => {
                                                 let _ = tx.send(rpc::StreamEvent::Error { message: e }).await;
                                             }
-                                            _ => {}
+                                            executor::ProcessOutput::Exit(code) => {
+                                                let _ = tx.send(rpc::StreamEvent::Exit { code }).await;
+                                                return;
+                                            }
                                         }
                                     }
-                                    // Note: In this simple implementation, we don't handle wait_for_completion 
-                                    // inside the monitoring task because it needs &mut self.
-                                    // We will improve this in the next iteration.
-                                    let _ = tx.send(rpc::StreamEvent::Exit { code: 0 }).await;
                                 });
                             }
                             Err(e) => {
@@ -145,10 +144,12 @@ async fn run_agent() -> Result<()> {
                                             executor::ProcessOutput::Error(e) => {
                                                 let _ = tx.send(rpc::StreamEvent::Error { message: e }).await;
                                             }
-                                            _ => {}
+                                            executor::ProcessOutput::Exit(code) => {
+                                                let _ = tx.send(rpc::StreamEvent::Exit { code }).await;
+                                                return;
+                                            }
                                         }
                                     }
-                                    let _ = tx.send(rpc::StreamEvent::Exit { code: 0 }).await;
                                 });
                             }
                             Err(e) => {

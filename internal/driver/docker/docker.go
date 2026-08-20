@@ -20,9 +20,10 @@ import (
 )
 
 const (
-	DriverName      = "docker"
-	AgentBinaryPath = "/usr/local/bin/boxed-agent"
-	ManagedLabel    = "xyz.boxed.managed"
+	DriverName       = "docker"
+	AgentBinaryPath  = "/usr/local/bin/boxed-agent"
+	ManagedLabel     = "xyz.boxed.managed"
+	defaultPidsLimit = int64(256)
 )
 
 // DockerDriver implements the driver.Driver interface using the Docker engine.
@@ -116,12 +117,17 @@ func (d *DockerDriver) Create(ctx context.Context, cfg driver.SandboxConfig) (st
 	// NanoCPUs: 1.0 = 1e9.
 	nanoCPUs := int64(cfg.CPUCores * 1e9)
 	memoryBytes := cfg.MemoryMB * 1024 * 1024
+	pidsLimit := defaultPidsLimit
 
 	hostConfig := &container.HostConfig{
 		Resources: container.Resources{
-			NanoCPUs: nanoCPUs,
-			Memory:   memoryBytes,
+			NanoCPUs:  nanoCPUs,
+			Memory:    memoryBytes,
+			PidsLimit: &pidsLimit,
 		},
+		ReadonlyRootfs: true,
+		CapDrop:        []string{"ALL"},
+		SecurityOpt:    []string{"no-new-privileges:true"},
 		Mounts: []mount.Mount{
 			// Mount the agent binary
 			{
@@ -132,23 +138,25 @@ func (d *DockerDriver) Create(ctx context.Context, cfg driver.SandboxConfig) (st
 			},
 			// Ephemeral /tmp
 			{
-				Type:   mount.TypeTmpfs,
-				Target: "/tmp",
+				Type:         mount.TypeTmpfs,
+				Target:       "/tmp",
+				TmpfsOptions: &mount.TmpfsOptions{Mode: 01777},
 			},
 			// Ephemeral /output
 			{
-				Type:   mount.TypeTmpfs,
-				Target: "/output",
+				Type:         mount.TypeTmpfs,
+				Target:       "/output",
+				TmpfsOptions: &mount.TmpfsOptions{Mode: 01777},
+			},
+			{
+				Type:         mount.TypeTmpfs,
+				Target:       cfg.WorkDir,
+				TmpfsOptions: &mount.TmpfsOptions{Mode: 01777},
 			},
 		},
-		// Drop capabilities for security (basic set)
-		// CapDrop: []string{"ALL"},
-		// CapAdd:  []string{"NET_BIND_SERVICE"},
-	}
-
-	// Network configuration
-	if !cfg.EnableNetworking {
-		hostConfig.NetworkMode = "none"
+		// Reject network-enabled configurations until a per-sandbox egress policy
+		// is implemented; this runtime always uses an isolated network namespace.
+		NetworkMode: "none",
 	}
 
 	// Environment variables

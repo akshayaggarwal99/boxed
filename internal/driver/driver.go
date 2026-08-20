@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"time"
 )
 
@@ -227,6 +228,14 @@ func (c *SandboxConfig) Validate() error {
 	if c.WorkDir == "" {
 		c.WorkDir = "/workspace"
 	}
+	if !filepath.IsAbs(c.WorkDir) || c.WorkDir == "/" {
+		return fmt.Errorf("%w: work directory must be an absolute path below the container root", ErrInvalidConfig)
+	}
+	for _, reserved := range []string{"/tmp", "/output"} {
+		if c.WorkDir == reserved {
+			return fmt.Errorf("%w: work directory %q is reserved", ErrInvalidConfig, c.WorkDir)
+		}
+	}
 
 	// Validate constraints
 	if c.MemoryMB > 8192 {
@@ -237,6 +246,9 @@ func (c *SandboxConfig) Validate() error {
 	}
 	if c.Timeout > 30*time.Minute {
 		return fmt.Errorf("%w: timeout cannot exceed 30 minutes", ErrInvalidConfig)
+	}
+	if c.EnableNetworking || c.NetworkPolicy.EnableInternet || len(c.AllowedHosts) > 0 || len(c.NetworkPolicy.AllowDomains) > 0 {
+		return fmt.Errorf("%w: network access is disabled until enforceable egress policy is implemented", ErrInvalidConfig)
 	}
 
 	return nil

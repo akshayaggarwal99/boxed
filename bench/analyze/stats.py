@@ -2,7 +2,7 @@
 """Emit LaTeX \newcommand macros from bench CSVs.
 
 Usage: stats.py <results_dir> <out_tables_dir>
-Produces <out_tables_dir>/numbers.tex with macros consumed by paper/main.tex.
+Produces <out_tables_dir>/numbers.tex with macros consumed by paper-v2/main.tex.
 """
 from __future__ import annotations
 
@@ -28,8 +28,8 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
 
     macros: dict[str, str] = {
-        # All macros referenced by paper/main.tex must have a default so the build
-        # never breaks when a CSV is missing.
+        # All macros referenced by paper-v2/main.tex must have a default so the
+        # build never breaks when a CSV is missing.
         "BoxedColdMedian": "TBD",
         "BoxedColdPNinetyFive": "TBD",
         "BoxedColdPNinetyNine": "TBD",

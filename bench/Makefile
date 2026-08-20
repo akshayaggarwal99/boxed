@@ -24,8 +24,8 @@ escapes:
 	ENDPOINT=$(ENDPOINT) BOXED_API_KEY=$(KEY) bash security/escapes.sh > results/escapes.csv
 
 plots:
-	python3 analyze/plots.py results ../paper/figures
-	python3 analyze/stats.py results ../paper/tables
+	python3 analyze/plots.py results ../paper-v2/figures
+	python3 analyze/stats.py results ../paper-v2/tables
 
 all: coldstart throughput overhead agent escapes plots
 

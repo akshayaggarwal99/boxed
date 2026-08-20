@@ -9,7 +9,7 @@ use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 /// Output event from a running process.
 #[derive(Debug, Clone)]
@@ -103,7 +103,7 @@ impl Executor {
 
         // Spawn tasks to read stdout and stderr
         let tx_stdout = tx.clone();
-        tokio::spawn(async move {
+        let stdout_task = tokio::spawn(async move {
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
@@ -114,7 +114,7 @@ impl Executor {
         });
 
         let tx_stderr = tx.clone();
-        tokio::spawn(async move {
+        let stderr_task = tokio::spawn(async move {
             let reader = BufReader::new(stderr);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
@@ -123,6 +123,32 @@ impl Executor {
                 }
             }
         });
+
+        // Non-interactive commands must report their actual exit status.
+        // REPL sessions retain the child so stdin remains available.
+        if !pipe_stdin {
+            let mut child = self.current.take().expect("child was just stored");
+            let tx_exit = tx.clone();
+            tokio::spawn(async move {
+                match child.wait().await {
+                    Ok(status) => {
+                        let _ = stdout_task.await;
+                        let _ = stderr_task.await;
+                        let _ = tx_exit
+                            .send(ProcessOutput::Exit(status.code().unwrap_or(-1)))
+                            .await;
+                    }
+                    Err(e) => {
+                        let _ = tx_exit.send(ProcessOutput::Error(e.to_string())).await;
+                    }
+                }
+            });
+        } else {
+            // Dropping a JoinHandle does not abort its task; the REPL retains
+            // its child and the reader tasks continue streaming until it exits.
+            drop(stdout_task);
+            drop(stderr_task);
+        }
 
         Ok(rx)
     }
@@ -177,14 +203,35 @@ mod tests {
         let config = ExecConfig {
             cmd: "echo".to_string(),
             args: vec!["hello".to_string()],
+            cwd: std::env::temp_dir().display().to_string(),
             ..Default::default()
         };
 
-        let mut rx = executor.exec(config).await.unwrap();
+        let mut rx = executor.exec(config, false).await.unwrap();
         
         // Should receive stdout
         if let Some(ProcessOutput::Stdout(line)) = rx.recv().await {
             assert_eq!(line, "hello");
         }
+    }
+
+    #[tokio::test]
+    async fn test_exec_reports_nonzero_exit_status() {
+        let mut executor = Executor::new();
+        let config = ExecConfig {
+            cmd: "sh".to_string(),
+            args: vec!["-c".to_string(), "exit 7".to_string()],
+            cwd: std::env::temp_dir().display().to_string(),
+            ..Default::default()
+        };
+
+        let mut rx = executor.exec(config, false).await.unwrap();
+        while let Some(event) = rx.recv().await {
+            if let ProcessOutput::Exit(code) = event {
+                assert_eq!(code, 7);
+                return;
+            }
+        }
+        panic!("process exit event was not emitted");
     }
 }
