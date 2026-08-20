@@ -1,6 +1,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Boxed: A Sovereign, Polyglot Sandbox Substrate for
-%        Autonomous Code-Generating Agents
+% Boxed: A Docker-Based Code-Execution Substrate for
+% Autonomous Code-Generating Agents
 % IEEE conference format (IEEEtran).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \documentclass[conference]{IEEEtran}
@@ -16,7 +16,7 @@
 \usepackage{url}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,shapes.geometric,fit,backgrounds,calc,
-                decorations.pathreplacing}
+ decorations.pathreplacing}
 \usepackage[hidelinks]{hyperref}
 
 % Auto-generated numeric macros (median latency, RPS, ...) produced by
@@ -27,20 +27,20 @@
 \input{tables/constants}
 
 \lstset{
-  basicstyle=\footnotesize\ttfamily,
-  keywordstyle=\bfseries,
-  columns=fullflexible,
-  breaklines=true,
-  frame=single,
-  framesep=3pt,
-  xleftmargin=3pt,
-  aboveskip=6pt,
-  belowskip=4pt,
+ basicstyle=\footnotesize\ttfamily,
+ keywordstyle=\bfseries,
+ columns=fullflexible,
+ breaklines=true,
+ frame=single,
+ framesep=3pt,
+ xleftmargin=3pt,
+ aboveskip=6pt,
+ belowskip=4pt,
 }
 
 \begin{document}
 
-\title{Boxed: A Sovereign, Polyglot Sandbox Substrate\\for Autonomous
+\title{Boxed: A Docker-Based Code-Execution Substrate\\for Autonomous
 Code-Generating Agents}
 
 \author{\IEEEauthorblockN{Akshay Kumar}
@@ -52,147 +52,161 @@ akumar8@mt.iitr.ac.in}}
 
 \begin{abstract}
 Autonomous large language model (LLM) agents increasingly write, execute, and
-iterate on code inside their reasoning loop, which makes the sandbox---not the
-model---the hot path of an agent task. Operators today choose among three
+iterate on code inside their reasoning loop, which makes the sandbox, not the
+model, the hot path of an agent task. Operators today choose among three
 unsatisfying options: roll-your-own Docker, which is fast to prototype but
 routinely ships without seccomp profiles, egress filtering, read-only root
 filesystems, or process caps; proprietary SaaS sandboxes, which are hardened
-but vendor-locked and incompatible with bring-your-own-key (BYOK) or
-data-sovereignty requirements; and research virtual machine monitors, which
+but vendor-locked or unsuitable for an operator's deployment requirements; and
+research virtual machine monitors, which
 provide the right isolation primitives but target a boot-once serverless
 invocation model rather than the agent's create/execute/destroy cycle. We
 present \textbf{Boxed}, an open-source sandbox substrate co-designed for
 agentic code execution. Boxed contributes a deliberately narrow four-method Go
-driver interface that makes the isolation backend a deployment-time choice; a
+driver interface that makes the isolation backend an extension point; a
 \BoxedAgentBinSize{} stripped Rust in-sandbox agent that streams
 \texttt{stdout}, \texttt{stderr}, and on-disk artifacts over JSON-RPC~2.0 as
-they are produced; and a stateless BYOK control plane that any operator can
-self-host. The current release ships a production-ready Docker driver with
-stubbed Firecracker and WebAssembly backends. On a contended developer laptop,
-Boxed sustains a median end-to-end create+exec+destroy latency of
-\BoxedColdMedian{} (p95 \BoxedColdPNinetyFive{}, p99
-\BoxedColdPNinetyNine{}) over \BoxedColdN{} sequential sandboxes, peaks at
-\BoxedPeakRPS{}~sandboxes/s at concurrency~\BoxedPeakConc{}, and holds
-\BoxedRSSMedian{} median idle resident-set size per sandbox. A twelve-vector
-behavioural escape probe classifies \BoxedEscapeDenied{} of
-\BoxedEscapeTotal{} attempts as denied; we publish the full per-vector result
-table, attribute each undenied vector to a specific configuration gap in the
-current Docker driver, and identify which verdicts are artifacts of
-signature-based classification rather than demonstrated policy failures. An
-end-to-end LLM-driven code-generation trace over \BoxedAgentN{}
-HumanEval-style tasks passes \BoxedAgentPass{} at median
-\BoxedAgentMedianTotal{} wall-clock, of which \BoxedAgentLLMShare{} is model
-inference. Boxed is MIT-licensed at
+they are produced; and a stateless control plane that an operator can
+self-host. The implementation currently provides one Docker backend;
+Firecracker and WebAssembly remain stubs. The Docker backend defaults to a
+read-only root filesystem, no Linux capabilities, no-new-privileges, a PID
+limit, and no network connectivity. Historical benchmark traces are included
+for reproducibility, but they predate these hardening changes and an exit-code
+reporting correction; they are not claims about the revised implementation.
+Boxed is MIT-licensed at
 \url{https://github.com/akshayaggarwal99/boxed}.
 \end{abstract}
 
 \begin{IEEEkeywords}
 sandboxing, code execution isolation, large language models, autonomous
-agents, containers, microVMs, WebAssembly, bring-your-own-key, data
-sovereignty, JSON-RPC
+agents, containers, Docker, JSON-RPC
 \end{IEEEkeywords}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}\label{sec:intro}
 
-The 2024--2026 wave of autonomous code-generating agents---from
-SWE-agent~\cite{sweagent} and AutoGPT-style harnesses through commercial
-products such as Cursor, Devin, and Claude Code---has changed what ``running
-untrusted code'' means in practice. A modern agent emits dozens of short-lived
-programs per task: it generates a snippet, executes it, inspects
+The 2024--2026 wave of autonomous code-generating agents, from
+Yang \emph{et al.}'s SWE-agent~\cite{sweagent} and AutoGPT-style harnesses through commercial
+products such as Cursor, Devin, and Claude Code, has changed what ``running
+untrusted code'' means in practice. Executable code has been argued to be a more effective action space for an agent
+than text or JSON~\cite{codeact}, and a modern agent on that pattern emits dozens
+of short-lived programs per task: it generates a snippet, executes it, inspects
 \texttt{stdout}, reads back a generated file, and iterates. Unlike batch
 compilation or single-shot execution, the sandbox is not a post-hoc
 verification step but a component of the agent's decision loop. The hot path
 of the agent is the sandbox, not the model.
 
 Today's options for hosting that hot path fall into three buckets, each
-unsatisfying for an operator who cares about cost, latency, and data
-sovereignty simultaneously.
+unsatisfying for an operator who cares about cost, latency, and control over
+deployment simultaneously.
 
 \textbf{Roll-your-own Docker} is the modal choice. It is fast to prototype but
 routinely shipped without seccomp profiles, network egress filters, read-only
 root filesystems, or process and memory caps, leaving the host one
-\texttt{rm -rf /} away from compromise~\cite{runc-cve}.
+\texttt{rm -rf /} away from compromise~\cite{runc-cve}. Measurement studies of
+deployed containers report the same pattern at scale~\cite{container-measure},
+and cgroup-based resource isolation has itself been shown to be
+evadable~\cite{houdini-cgroups}.
 
-\textbf{Proprietary SaaS sandboxes}---E2B~\cite{e2b}, Modal
-Sandbox~\cite{modal}, Cloudflare Sandbox~\cite{cfsandbox}---ship hardened
+\textbf{Proprietary SaaS sandboxes} (E2B~\cite{e2b}, Modal
+Sandbox~\cite{modal}, Cloudflare Sandbox~\cite{cfsandbox}) ship hardened
 isolation but require the operator to transmit every byte of generated code,
-execution output, and intermediate artifact to a third party, with no BYOK or
-self-host story for regulated workloads in healthcare, finance, or government.
+execution output, and intermediate artifact to a third party, which can
+conflict with an operator's deployment and data-handling requirements.
 
-\textbf{Research VMMs} such as Firecracker~\cite{firecracker} provide the right
-primitives but are designed for AWS Lambda's invocation model---boot once, run
-an event loop, amortize startup across many requests---rather than the agent's
+\textbf{Research VMMs} such as Agache \emph{et al.}'s Firecracker~\cite{firecracker} provide the right
+primitives but are designed for AWS Lambda's invocation model (boot once, run
+an event loop, amortize startup across many requests) rather than the agent's
 create/execute/destroy cycle, and they ship without an in-guest agent that can
 stream artifacts back to the caller.
 
-We argue that agentic workloads deserve a sandbox \emph{substrate} that treats
+Agentic workloads call for a sandbox \emph{substrate} that treats
 the LLM client as a first-class citizen: pluggable isolation backends so one
 control plane drives Docker on a laptop and Firecracker in production, an
 in-sandbox agent that streams standard output and on-disk artifacts as they
-appear, and a sovereign deployment story in which the operator owns the
-control plane, the keys, and the data.
+appear, and a self-hosted deployment story in which the operator controls the
+control plane and its workload data.
+
+\subsection{Problem Statement}
+
+An autonomous coding agent executes untrusted, machine-generated code many
+times within a single task, so the sandbox sits on the hot path rather than at
+the edge of the system. Three properties are required at once. The isolation
+boundary must be strong enough to contain code the operator never reviewed. The
+per-execution latency must be low enough that the sandbox does not dominate the
+agent's loop. The deployment must leave the operator in control of the keys and
+the data, because agent workloads routinely carry proprietary source and
+customer records into the sandbox.
+
+No existing substrate satisfies all three. Proprietary sandbox services meet the
+first two but place a third party inside the trust boundary and expose no
+control over the isolation backend. Self-hosted container runtimes leave the
+operator sovereign but couple the control plane to one isolation technology, so
+strengthening the boundary later means rewriting the orchestration layer. The
+gap addressed here is a substrate that treats the isolation backend as a
+deployment-time choice while keeping the control plane, the keys, and the data
+under the operator's control.
+
+\subsection{Objectives}
+
+\begin{itemize}
+\item Define an isolation interface narrow enough that container runtimes,
+microVMs, and WebAssembly sandboxes are interchangeable behind it, so that the
+security boundary can be strengthened without changing the control plane.
+\item Deliver execution output incrementally, so that an agent can react to
+partial results rather than waiting for process exit, and return files produced
+during execution as structured events rather than as an out-of-band artifact.
+\item Support self-hosted deployment without requiring a Boxed-operated service
+to receive workload data.
+\item Quantify the cost and the limits of the resulting design on commodity
+hardware, including the isolation failures the current configuration does not
+prevent.
+\end{itemize}
 
 \subsection{Contributions}
 
 \begin{itemize}
-\item A narrow \emph{driver interface} (Section~\ref{sec:design}) that
-abstracts container runtimes, microVMs, and Wasm sandboxes behind four Go
-methods, making the isolation backend a deployment-time configuration choice
-rather than a compile-time dependency. The current release ships a Docker
-driver and stubs for Firecracker and Wasm.
-\item A \emph{Rust in-sandbox agent} that streams
-\texttt{stdout}/\texttt{stderr} chunks as discrete JSON-RPC events rather than
-buffering until process exit, and mirrors files written under a watched
-directory back to the caller as structured artifact events.
-\item A \emph{BYOK control plane} (Section~\ref{sec:impl}) that any operator
-can self-host with a key of their choosing, deliberately foreclosing a
-third-party multi-tenant deployment of Boxed in exchange for removing the
-vendor from the trust boundary.
-\item An \emph{open benchmark harness} (Section~\ref{sec:eval}) reporting
-cold-start latency, throughput under concurrency, per-sandbox idle overhead, a
-twelve-vector adversarial escape probe with full per-vector results, and an
-end-to-end LLM-driven code-generation trace. Raw CSV traces ship with the
-source.
-\item A \emph{negative-results disclosure}: we publish the seven escape
-vectors our current configuration fails to deny, map each to the specific line
-of driver configuration responsible (Section~\ref{sec:disc}), and separate
-genuine policy gaps from artifacts of our classification method.
+\item A driver interface that abstracts container runtimes, microVMs, and
+WebAssembly sandboxes behind four Go methods, making the isolation backend a
+deployment-time configuration choice rather than a compile-time dependency. The
+current release ships a Docker driver together with stubs for Firecracker and
+WebAssembly.
+\item A Rust in-sandbox agent that streams \texttt{stdout} and \texttt{stderr}
+chunks as discrete JSON-RPC events instead of buffering until process exit, and
+mirrors files written under a watched directory back to the caller as
+structured artifact events.
+\item A self-hosted control plane with an operator-configured API key. It is a
+single-instance authentication mechanism, not a credential-management or
+multi-tenant system.
+\item An open benchmark harness covering cold-start latency, throughput under
+concurrency, per-sandbox idle overhead, a twelve-vector adversarial escape
+probe with full per-vector results, and an end-to-end agent-driven
+code-generation trace. Raw traces ship with the source.
+\item A benchmark harness and a pre-hardening negative-results baseline. The
+paper identifies the limits of that baseline and specifies the reruns required
+before publication.
 \end{itemize}
-
-On a MacBook Pro (Apple M1~Pro, 16\,GB, Docker Desktop) running typical
-background processes, Boxed achieves a median end-to-end
-create+exec+destroy latency of \BoxedColdMedian{} (p95
-\BoxedColdPNinetyFive{}), single-trial peak throughput
-\BoxedPeakRPS{}~sandboxes/s, and \BoxedRSSMedian{} median per-sandbox idle
-working set as reported by \texttt{docker stats}. We also report what does
-\emph{not} work: a behavioural probe of \BoxedEscapeTotal{} adversarial
-attempts classified \BoxedEscapeDenied{} as denied, surfacing concrete
-hardening gaps in the current Docker driver---writable rootfs, the default
-Linux capability set, no \texttt{PidsLimit}, and a permissive
-\texttt{ptrace} policy---which we discuss in Section~\ref{sec:disc} and close
-in the planned Firecracker driver.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Background and Related Work}\label{sec:related}
 
 \subsection{Container-based isolation}
 Linux containers built on namespaces, cgroups, and seccomp underpin nearly
-every modern development sandbox. They are cheap to start---roughly
-50--200\,ms when images are warm---which is why they dominate workloads that
+every modern development sandbox. They are cheap to start, roughly
+50--200\,ms when images are warm, which is why they dominate workloads that
 create and destroy execution environments frequently. That speed comes at a
 security cost: containers share the host kernel, exposing a substantially
 larger attack surface than hardware-isolated alternatives. The consequence is
 not merely theoretical. CVE-2019-5736~\cite{runc-cve} is the canonical
 reminder that a single bug in \texttt{runc} can turn a container into a host.
-Hardened container runtimes such as gVisor~\cite{gvisor} interpose a userspace
+Hardened container runtimes such as gVisor~\cite{gvisor}, whose syscall-interception overhead Young \emph{et al.}~\cite{gvisor-cost} quantify, interpose a userspace
 kernel between the workload and the host, shrinking the trusted computing base
 at the cost of a 2--5$\times$ syscall overhead. For an agent executing
 hundreds of short-lived programs per task, that multiplicative cost must be
 weighed against the reduced risk of kernel-level compromise.
 
 \subsection{Lightweight virtual machines}
-Firecracker~\cite{firecracker} demonstrated that a stripped-down KVM VMM can
+Agache \emph{et al.}~\cite{firecracker} demonstrated that a stripped-down KVM VMM can
 boot a guest kernel in $\sim$125\,ms with $<$5\,MiB of memory overhead per VM,
 and now powers AWS Lambda. Kata Containers~\cite{kata} and Manco et al.'s
 \emph{My VM is Lighter (and Safer) than Your Container}~\cite{my-vm-is-lighter}
@@ -201,19 +215,19 @@ These systems optimize \emph{boot} cost and steady-state memory overhead under
 a serverless assumption: boot once, run an event loop, amortize startup across
 many invocations. That assumption diverges from the access pattern of an
 autonomous coding agent, which creates an ephemeral sandbox, runs one
-short-lived program, extracts outputs, and destroys the environment---hundreds
+short-lived program, extracts outputs, and destroys the environment, hundreds
 of times per task. It is the cumulative \emph{lifecycle} cost, not cold-start
 latency in isolation, that determines whether a substrate is viable for
 agentic workloads, and the lightweight-VM literature offers comparatively
 little guidance on that regime.
 
 \subsection{Unikernels and WebAssembly}
-Unikernels~\cite{unikernel} push isolation further by compiling the
+Madhavapeddy \emph{et al.}~\cite{unikernel} push isolation further by compiling the
 application together with a library operating system into a single boot image,
 eliminating the general-purpose kernel layer and minimizing the trusted
-computing base---at the cost of requiring application-specific compilation,
+computing base, at the cost of requiring application-specific compilation,
 which precludes executing arbitrary dynamically generated binaries.
-WebAssembly and WASI~\cite{wasi} reframe the problem at the language level:
+WebAssembly~\cite{wasm} and WASI~\cite{wasi} reframe the problem at the language level:
 the guest is portable bytecode with explicit capability-based imports, and the
 ``sandbox'' is a runtime embedded in the host process. Microsecond-scale
 instantiation is exactly what a create-heavy agent workload wants. The
@@ -239,15 +253,15 @@ Two limitations are shared across the category. First, none exposes a
 pluggable isolation backend: the choice of Docker, Firecracker, or V8 is fixed
 at the platform level and cannot be re-targeted from a laptop to a production
 cluster without migrating systems. Second, with the exception of Daytona, all
-operate exclusively as hosted services, which is incompatible with BYOK
-deployment and raises data-sovereignty concerns for regulated workloads.
+operate primarily as hosted services, which can be unsuitable for deployments
+that require the operator to retain control of workload data.
 Table~\ref{tab:compare} positions Boxed within this landscape.
 
 \subsection{Evaluating LLM-generated code execution}
-HumanEval~\cite{humaneval} established single-function code generation as a
+Chen \emph{et al.}~\cite{humaneval} established single-function code generation as a
 standard benchmark, measuring whether a model can synthesize a correct
 implementation from a natural-language specification.
-SWE-agent~\cite{sweagent} extended this to agent-mediated software engineering,
+Yang \emph{et al.}~\cite{sweagent} extended this to agent-mediated software engineering,
 where the agent must \emph{run} the code it writes and refine it, not merely
 emit it. Our agent-trace evaluation (Section~\ref{sec:eval}) follows the
 latter regime: the model emits a candidate Python function, Boxed executes it
@@ -261,7 +275,7 @@ influence.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Threat Model}\label{sec:threat}
 
-We assume an adversary with full control over the code submitted to a sandbox:
+The threat model assumes an adversary with full control over the code submitted to a sandbox:
 they may craft arbitrary Linux binaries, issue any syscall sequence, and
 attempt network egress to any destination. The adversary does \emph{not}
 control the control plane, the driver implementation, or the host kernel;
@@ -269,63 +283,63 @@ these remain trusted. Fig.~\ref{fig:threat} shows the resulting trust
 boundary.
 
 \begin{figure}[t]
-  \centering
-  \resizebox{\columnwidth}{!}{%
-  \begin{tikzpicture}[
-    font=\footnotesize\sffamily,
-    box/.style={draw,rounded corners=2pt,align=center,inner sep=3.5pt},
-    trusted/.style={box,fill=blue!8},
-    hostile/.style={box,fill=red!8},
-    hostbox/.style={box,fill=gray!8},
-    thr/.style={-Stealth,thick,red!70!black,dashed},
-  ]
-    % host
-    \node[hostbox,minimum width=82mm,minimum height=42mm] (host) at (0,0) {};
-    \node[font=\scriptsize\sffamily,anchor=north west] at (host.north west)
-      [xshift=3pt,yshift=-3pt] {Host (trusted)};
+ \centering
+ \resizebox{\columnwidth}{!}{%
+ \begin{tikzpicture}[
+ font=\footnotesize\sffamily,
+ box/.style={draw,rounded corners=2pt,align=center,inner sep=3.5pt},
+ trusted/.style={box,fill=blue!8},
+ hostile/.style={box,fill=red!8},
+ hostbox/.style={box,fill=gray!8},
+ thr/.style={-Stealth,thick,red!70!black,dashed},
+ ]
+ % host
+ \node[hostbox,minimum width=82mm,minimum height=42mm] (host) at (0,0) {};
+ \node[font=\scriptsize\sffamily,anchor=north west] at (host.north west)
+ [xshift=3pt,yshift=-3pt] {Host (trusted)};
 
-    \node[trusted,minimum width=32mm] (cp) at (-1.75,1.0)
-      {Control plane + driver\\{\scriptsize trusted, BYOK}};
-    \node[trusted,minimum width=26mm] (kern) at (1.75,1.0)
-      {Host kernel\\{\scriptsize trusted}};
+ \node[trusted,minimum width=32mm] (cp) at (-1.75,1.0)
+ {Control plane + driver\\{\scriptsize trusted, self-hosted}};
+ \node[trusted,minimum width=26mm] (kern) at (1.75,1.0)
+ {Host kernel\\{\scriptsize trusted}};
 
-    \node[hostile,minimum width=30mm,minimum height=13mm] (sbx) at (-1.75,-1.0)
-      {Sandbox A\\{\scriptsize adversary-controlled}};
-    \node[hostbox,minimum width=30mm,minimum height=13mm] (sbxb) at (1.75,-1.0)
-      {Sandbox B\\{\scriptsize co-tenant}};
+ \node[hostile,minimum width=30mm,minimum height=13mm] (sbx) at (-1.75,-1.0)
+ {Sandbox A\\{\scriptsize adversary-controlled}};
+ \node[hostbox,minimum width=30mm,minimum height=13mm] (sbxb) at (1.75,-1.0)
+ {Sandbox B\\{\scriptsize co-tenant}};
 
-    \draw[thr] (sbx.north) -- node[left,font=\scriptsize,inner sep=1.5pt]{T1} (cp.south);
-    \draw[thr] (sbx.east) -- node[above,font=\scriptsize,inner sep=1.5pt]{T3} (sbxb.west);
-    \draw[thr] ($(sbx.north east)+(0,-1mm)$)
-      -- node[below right,font=\scriptsize,inner sep=1.5pt,pos=0.42]{T2, T4}
-      ($(kern.south west)+(1mm,0)$);
-  \end{tikzpicture}}
-  \caption{Trust boundary. Adversary-controlled code executes inside a
-  sandbox; the control plane, driver, and host kernel are trusted. Dashed
-  arrows are the four threat classes the substrate must resist. Side channels
-  between co-tenants on shared hardware are out of scope.}
-  \label{fig:threat}
+ \draw[thr] (sbx.north) -- node[left,font=\scriptsize,inner sep=1.5pt]{T1} (cp.south);
+ \draw[thr] (sbx.east) -- node[above,font=\scriptsize,inner sep=1.5pt]{T3} (sbxb.west);
+ \draw[thr] ($(sbx.north east)+(0,-1mm)$)
+ -- node[below right,font=\scriptsize,inner sep=1.5pt,pos=0.42]{T2, T4}
+ ($(kern.south west)+(1mm,0)$);
+ \end{tikzpicture}}
+ \caption{Trust boundary. Adversary-controlled code executes inside a
+ sandbox; the control plane, driver, and host kernel are trusted. Dashed
+ arrows are the four threat classes the substrate must resist. Side channels
+ between co-tenants on shared hardware are out of scope.}
+ \label{fig:threat}
 \end{figure}
 
-We aim to prevent four classes of attack.
+The design aims to prevent four classes of attack.
 
-\textbf{T1 --- Host filesystem access.} Read or write access to the host
+\textbf{T1 (Host filesystem access.} Read or write access to the host
 filesystem outside the sandbox's ephemeral root, whether through path
 manipulation, symbolic links, or direct mount operations.
 
-\textbf{T2 --- Namespace escalation.} Escape from the allocated network or
+\textbf{T2) Namespace escalation.} Escape from the allocated network or
 process namespace into the host's network stack or process tree, which would
 let the adversary observe or manipulate unrelated system activity.
 
-\textbf{T3 --- Co-tenant exfiltration.} Access to credentials, artifacts, or
+\textbf{T3, Co-tenant exfiltration.} Access to credentials, artifacts, or
 data belonging to a concurrent sandbox on the same host.
 
-\textbf{T4 --- Resource exhaustion.} Denial of service against the host
+\textbf{T4, Resource exhaustion.} Denial of service against the host
 through fork bombs, memory exhaustion, or other unbounded resource
 consumption.
 
-Side-channel attacks exploiting shared hardware---cache timing, speculative
-execution---are explicitly out of scope. Mitigating them requires per-customer
+Side-channel attacks exploiting shared hardware (cache timing, speculative
+execution) are explicitly out of scope. Mitigating them requires per-customer
 hardware partitioning, a deployment decision that belongs to the operator
 rather than a property the substrate can enforce.
 
@@ -340,70 +354,70 @@ development laptop and Firecracker microVMs in production without
 modification.
 
 \begin{figure}[t]
-  \centering
-  \resizebox{\columnwidth}{!}{%
-  \begin{tikzpicture}[
-    font=\footnotesize\sffamily,
-    box/.style={draw,rounded corners=2pt,align=center,minimum height=7mm,inner sep=3pt},
-    cp/.style={box,fill=blue!8,minimum width=46mm},
-    drv/.style={box,fill=orange!12,minimum width=24mm},
-    sb/.style={box,fill=gray!10,minimum width=24mm},
-    agent/.style={box,fill=green!12,minimum width=22mm,minimum height=5mm},
-    arr/.style={-Stealth,thick},
-    >=Stealth,
-  ]
-    \node[cp] (client) {AI Agent / SDK / CLI};
-    \node[cp,below=5mm of client] (api)
-      {Control Plane (Go, Echo) \\ {\scriptsize auth, routing, sandbox registry}};
-    \node[drv,below left=13mm and -10mm of api] (dd)  {Docker Driver};
-    \node[drv,below=13mm of api] (fd)  {Firecracker$^{*}$};
-    \node[drv,below right=13mm and -10mm of api] (wd) {Wasm$^{*}$};
-    \node[sb,below=8mm of dd]  (c1) {Container};
-    \node[sb,below=8mm of fd]  (c2) {MicroVM};
-    \node[sb,below=8mm of wd]  (c3) {Wasm Sbx};
-    \node[agent] (a1) at (c1.south) [yshift=-5mm] {boxed-agent (Rust)};
-    \node[agent] (a2) at (c2.south) [yshift=-5mm] {boxed-agent};
-    \node[agent] (a3) at (c3.south) [yshift=-5mm] {boxed-agent};
-    \draw[arr] (client) -- node[right,font=\scriptsize]{HTTP/WS, \texttt{X-Boxed-API-Key}} (api);
-    \draw[arr] (api) -- (dd);
-    \draw[arr] (api) -- (fd);
-    \draw[arr] (api) -- (wd);
-    \draw[arr,dashed] (dd) -- node[right,font=\scriptsize,inner sep=1.5pt]{exec attach} (c1);
-    \draw[arr,dashed] (fd) -- node[right,font=\scriptsize,inner sep=1.5pt]{vsock$^{*}$} (c2);
-    \draw[arr,dashed] (wd) -- node[right,font=\scriptsize,inner sep=1.5pt]{fn ptr$^{*}$} (c3);
-    \draw[arr,dashed] (c1) -- (a1);
-    \draw[arr,dashed] (c2) -- (a2);
-    \draw[arr,dashed] (c3) -- (a3);
-    \begin{scope}[on background layer]
-      \node[draw,dotted,rounded corners,fit=(dd)(fd)(wd),inner sep=2.6mm]
-        (ifacebox) {};
-    \end{scope}
-    \node[font=\scriptsize\sffamily,anchor=west,align=left]
-      at ($(ifacebox.east)+(1.5mm,0)$) {\texttt{driver.Driver}\\interface};
-  \end{tikzpicture}}
-  \caption{Boxed architecture. The control plane drives a single narrow
-  \texttt{Driver} interface, behind which the Docker driver ships today and
-  Firecracker/Wasm drivers are stubbed. A common Rust agent runs inside every
-  sandbox and speaks JSON-RPC over whatever byte stream the driver supplies.
-  $^{*}$Stubbed; not production-ready in the current release.}
-  \label{fig:arch}
+ \centering
+ \resizebox{\columnwidth}{!}{%
+ \begin{tikzpicture}[
+ font=\footnotesize\sffamily,
+ box/.style={draw,rounded corners=2pt,align=center,minimum height=7mm,inner sep=3pt},
+ cp/.style={box,fill=blue!8,minimum width=46mm},
+ drv/.style={box,fill=orange!12,minimum width=24mm},
+ sb/.style={box,fill=gray!10,minimum width=24mm},
+ agent/.style={box,fill=green!12,minimum width=22mm,minimum height=5mm},
+ arr/.style={-Stealth,thick},
+ >=Stealth,
+ ]
+ \node[cp] (client) {AI Agent / SDK / CLI};
+ \node[cp,below=5mm of client] (api)
+ {Control Plane (Go, Echo) \\ {\scriptsize auth, routing, sandbox registry}};
+ \node[drv,below left=13mm and -10mm of api] (dd) {Docker Driver};
+ \node[drv,below=13mm of api] (fd) {Firecracker$^{*}$};
+ \node[drv,below right=13mm and -10mm of api] (wd) {Wasm$^{*}$};
+ \node[sb,below=8mm of dd] (c1) {Container};
+ \node[sb,below=8mm of fd] (c2) {MicroVM};
+ \node[sb,below=8mm of wd] (c3) {Wasm Sbx};
+ \node[agent] (a1) at (c1.south) [yshift=-5mm] {boxed-agent (Rust)};
+ \node[agent] (a2) at (c2.south) [yshift=-5mm] {boxed-agent};
+ \node[agent] (a3) at (c3.south) [yshift=-5mm] {boxed-agent};
+ \draw[arr] (client) -- node[right,font=\scriptsize]{HTTP/WS, \texttt{X-Boxed-API-Key}} (api);
+ \draw[arr] (api) -- (dd);
+ \draw[arr] (api) -- (fd);
+ \draw[arr] (api) -- (wd);
+ \draw[arr,dashed] (dd) -- node[right,font=\scriptsize,inner sep=1.5pt]{exec attach} (c1);
+ \draw[arr,dashed] (fd) -- node[right,font=\scriptsize,inner sep=1.5pt]{vsock$^{*}$} (c2);
+ \draw[arr,dashed] (wd) -- node[right,font=\scriptsize,inner sep=1.5pt]{fn ptr$^{*}$} (c3);
+ \draw[arr,dashed] (c1) -- (a1);
+ \draw[arr,dashed] (c2) -- (a2);
+ \draw[arr,dashed] (c3) -- (a3);
+ \begin{scope}[on background layer]
+ \node[draw,dotted,rounded corners,fit=(dd)(fd)(wd),inner sep=2.6mm]
+ (ifacebox) {};
+ \end{scope}
+ \node[font=\scriptsize\sffamily,anchor=west,align=left]
+ at ($(ifacebox.east)+(1.5mm,0)$) {\texttt{driver.Driver}\\interface};
+ \end{tikzpicture}}
+ \caption{Boxed architecture. The control plane drives a single narrow
+ \texttt{Driver} interface, behind which the Docker driver ships today and
+ Firecracker/Wasm drivers are stubbed. A common Rust agent runs inside every
+ sandbox and speaks JSON-RPC over whatever byte stream the driver supplies.
+ $^{*}$Not implemented in the current release.}
+ \label{fig:arch}
 \end{figure}
 
 \subsection{Driver Interface}\label{sec:driver}
 The central abstraction is a single Go interface whose sandbox-lifecycle
-subset is deliberately narrow, so that future drivers---Firecracker, Wasm,
-Kata---can be added without touching the control plane. The full interface
+subset is deliberately narrow, so that future drivers (Firecracker, Wasm,
+Kata) can be added without touching the control plane. The full interface
 also exposes file-injection and listing helpers used by the SDK, but four
 lifecycle methods constitute the minimal contract every backend must satisfy:
 
 \begin{lstlisting}[language=Go]
 type Driver interface {
-  Create(ctx context.Context,
-         cfg SandboxConfig) (string, error)
-  Start(ctx context.Context, id string) error
-  Stop(ctx context.Context, id string) error
-  Connect(ctx context.Context,
-          id string) (io.ReadWriteCloser, error)
+ Create(ctx context.Context,
+ cfg SandboxConfig) (string, error)
+ Start(ctx context.Context, id string) error
+ Stop(ctx context.Context, id string) error
+ Connect(ctx context.Context,
+ id string) (io.ReadWriteCloser, error)
 }
 \end{lstlisting}
 
@@ -423,21 +437,20 @@ framework that maps \texttt{POST /v1/sandbox} requests through the configured
 driver. Two choices matter for agent workloads.
 
 First, \texttt{create} returns once the underlying runtime reports that the
-sandbox process has launched---for the Docker driver, once
-\texttt{ContainerStart} acknowledges---with \texttt{status: ready}. The caller
+sandbox process has launched (for the Docker driver, once
+\texttt{ContainerStart} acknowledges) with \texttt{status: ready}. The caller
 does not poll a separate status endpoint. The first \texttt{exec} after
 \texttt{create} absorbs the small additional cost of waiting for the agent's
 JSON-RPC loop to come up. Because an agent task may create dozens of
 short-lived sandboxes, removing a polling round-trip from each one is a
 material saving in the aggregate.
 
-Second, authentication uses a bring-your-own-key header
-(\texttt{X-Boxed-API-Key}). The operator supplies the key at startup; Boxed
-never issues, rotates, or stores keys. This deliberately forecloses a
-\emph{third-party} multi-tenant deployment of Boxed, in exchange for letting
-any operator self-host without extending trust to a vendor. For organizations
-under data-sovereignty constraints, all generated code, execution output, and
-intermediate files stay inside the operator's infrastructure boundary.
+Second, authentication uses an operator-configured static API-key header
+(\texttt{X-Boxed-API-Key}). Boxed does not issue, rotate, or store keys. This
+is deliberately a single-instance authentication mechanism, not a multi-tenant
+identity, key-management, or compliance system. In a self-hosted deployment,
+the operator controls the infrastructure that receives generated code,
+execution output, and intermediate files.
 
 \subsection{In-Sandbox Agent}
 Inside every sandbox runs \texttt{boxed-agent}, a single statically linked
@@ -469,9 +482,9 @@ channel that carries \texttt{stdout} and \texttt{stderr}. A size cap of
 \BoxedInlineCap{} bounds the memory and serialization cost of inlining; files
 above the cap are currently skipped with a logged warning rather than
 delivered. The wire protocol reserves a \texttt{url} field on the artifact
-event for an out-of-band upload path---in which the agent would \texttt{PUT}
-the file to a pre-signed URL and return only a reference---but that path is
-\emph{not implemented} in this release. We flag this explicitly because a
+event for an out-of-band upload path, in which the agent would \texttt{PUT}
+the file to a pre-signed URL and return only a reference, but that path is
+\emph{not implemented} in this release. This is flagged explicitly because a
 substrate that silently drops large artifacts is a correctness hazard for any
 workload that emits model checkpoints or datasets; closing this gap is
 scheduled ahead of the Firecracker driver.
@@ -482,60 +495,60 @@ driver today and the Firecracker and Wasm drivers later expose identical
 behaviour to the caller.
 
 \begin{figure}[t]
-  \centering
-  \resizebox{\columnwidth}{!}{%
-  \begin{tikzpicture}[
-    font=\scriptsize\sffamily,
-    lifeline/.style={draw,gray,densely dotted},
-    head/.style={draw,rounded corners=2pt,fill=blue!8,minimum height=5.5mm,
-                 align=center,inner sep=3pt},
-    msg/.style={-Stealth,thick},
-    ret/.style={-Stealth,thick,dashed},
-    note/.style={font=\scriptsize\itshape,text=black!65},
-  ]
-    % lifeline x-positions
-    \def\xcl{0}   \def\xcp{3.0}  \def\xdr{5.6}  \def\xag{8.4}
-    % message y-positions
-    \def\ya{-0.3}   \def\yb{-1.05}  \def\yc{-1.8}
-    \def\yd{-2.55}  \def\ye{-3.45}  \def\yf{-4.2}
-    \def\yg{-4.95}  \def\yh{-5.85}  \def\yi{-6.6}
-    \def\bot{-7.05}
+ \centering
+ \resizebox{\columnwidth}{!}{%
+ \begin{tikzpicture}[
+ font=\scriptsize\sffamily,
+ lifeline/.style={draw,gray,densely dotted},
+ head/.style={draw,rounded corners=2pt,fill=blue!8,minimum height=5.5mm,
+ align=center,inner sep=3pt},
+ msg/.style={-Stealth,thick},
+ ret/.style={-Stealth,thick,dashed},
+ note/.style={font=\scriptsize\itshape,text=black!65},
+ ]
+ % lifeline x-positions
+ \def\xcl{0} \def\xcp{3.0} \def\xdr{5.6} \def\xag{8.4}
+ % message y-positions
+ \def\ya{-0.3} \def\yb{-1.05} \def\yc{-1.8}
+ \def\yd{-2.55} \def\ye{-3.45} \def\yf{-4.2}
+ \def\yg{-4.95} \def\yh{-5.85} \def\yi{-6.6}
+ \def\bot{-7.05}
 
-    \node[head,minimum width=17mm] (cl) at (\xcl,0.35) {Agent / SDK};
-    \node[head,minimum width=19mm] (cp) at (\xcp,0.35) {Control plane};
-    \node[head,minimum width=13mm] (dr) at (\xdr,0.35) {Driver};
-    \node[head,minimum width=19mm] (ag) at (\xag,0.35) {boxed-agent};
+ \node[head,minimum width=17mm] (cl) at (\xcl,0.35) {Agent / SDK};
+ \node[head,minimum width=19mm] (cp) at (\xcp,0.35) {Control plane};
+ \node[head,minimum width=13mm] (dr) at (\xdr,0.35) {Driver};
+ \node[head,minimum width=19mm] (ag) at (\xag,0.35) {boxed-agent};
 
-    \draw[lifeline] (\xcl,0.05) -- (\xcl,\bot);
-    \draw[lifeline] (\xcp,0.05) -- (\xcp,\bot);
-    \draw[lifeline] (\xdr,0.05) -- (\xdr,\bot);
-    \draw[lifeline] (\xag,0.05) -- (\xag,\bot);
+ \draw[lifeline] (\xcl,0.05) -- (\xcl,\bot);
+ \draw[lifeline] (\xcp,0.05) -- (\xcp,\bot);
+ \draw[lifeline] (\xdr,0.05) -- (\xdr,\bot);
+ \draw[lifeline] (\xag,0.05) -- (\xag,\bot);
 
-    \draw[msg] (\xcl,\ya) -- node[above]{\texttt{POST /v1/sandbox}} (\xcp,\ya);
-    \draw[msg] (\xcp,\yb) -- node[above]{\texttt{Create} + \texttt{Start}} (\xdr,\yb);
-    \draw[ret] (\xdr,\yc) -- node[above]{sandbox \texttt{id}} (\xcp,\yc);
-    \draw[ret] (\xcp,\yd) -- node[above]{\texttt{201 status: ready}} (\xcl,\yd);
+ \draw[msg] (\xcl,\ya) -- node[above]{\texttt{POST /v1/sandbox}} (\xcp,\ya);
+ \draw[msg] (\xcp,\yb) -- node[above]{\texttt{Create} + \texttt{Start}} (\xdr,\yb);
+ \draw[ret] (\xdr,\yc) -- node[above]{sandbox \texttt{id}} (\xcp,\yc);
+ \draw[ret] (\xcp,\yd) -- node[above]{\texttt{201 status: ready}} (\xcl,\yd);
 
-    % brace marking the single round trip (drawn clear of the lifelines)
-    \draw[decorate,decoration={brace,amplitude=4pt},black!55]
-      (\xag+0.75,\ya+0.12) -- (\xag+0.75,\yd-0.12);
-    \node[note,anchor=west,align=left] at (\xag+0.95,{(\ya+\yd)/2})
-      {one round trip:\\no status polling};
+ % brace marking the single round trip (drawn clear of the lifelines)
+ \draw[decorate,decoration={brace,amplitude=4pt},black!55]
+ (\xag+0.75,\ya+0.12) -- (\xag+0.75,\yd-0.12);
+ \node[note,anchor=west,align=left] at (\xag+0.95,{(\ya+\yd)/2})
+ {one round trip:\\no status polling};
 
-    \draw[msg] (\xcl,\ye) -- node[above]{\texttt{exec}} (\xcp,\ye);
-    \draw[msg] (\xcp,\yf) -- node[above]{\texttt{Connect} $\rightarrow$ attach stream} (\xag,\yf);
-    \draw[ret] (\xag,\yg)
-      -- node[above]{\texttt{stdout}/\texttt{stderr} chunks, \texttt{artifact} events}
-      (\xcl,\yg);
+ \draw[msg] (\xcl,\ye) -- node[above]{\texttt{exec}} (\xcp,\ye);
+ \draw[msg] (\xcp,\yf) -- node[above]{\texttt{Connect} $\rightarrow$ attach stream} (\xag,\yf);
+ \draw[ret] (\xag,\yg)
+ -- node[above]{\texttt{stdout}/\texttt{stderr} chunks, \texttt{artifact} events}
+ (\xcl,\yg);
 
-    \draw[msg] (\xcl,\yh) -- node[above]{\texttt{DELETE /v1/sandbox/\{id\}}} (\xcp,\yh);
-    \draw[msg] (\xcp,\yi) -- node[above]{\texttt{Stop}} (\xdr,\yi);
-  \end{tikzpicture}}
-  \caption{Sandbox lifecycle. \texttt{create} returns as soon as the runtime
-  reports the sandbox process launched, so the client never polls a status
-  endpoint; the first \texttt{exec} absorbs agent start-up. Output and
-  artifacts stream back on one channel as they are produced.}
-  \label{fig:lifecycle}
+ \draw[msg] (\xcl,\yh) -- node[above]{\texttt{DELETE /v1/sandbox/\{id\}}} (\xcp,\yh);
+ \draw[msg] (\xcp,\yi) -- node[above]{\texttt{Stop}} (\xdr,\yi);
+ \end{tikzpicture}}
+ \caption{Sandbox lifecycle. \texttt{create} returns as soon as the runtime
+ reports the sandbox process launched, so the client never polls a status
+ endpoint; the first \texttt{exec} absorbs agent start-up. Output and
+ artifacts stream back on one channel as they are produced.}
+ \label{fig:lifecycle}
 \end{figure}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -552,14 +565,15 @@ differ from what a reader might assume.
 The Docker driver bind-mounts the host's \texttt{boxed-agent} binary into the
 container read-only at create time, so a stock base image
 (\texttt{python:3.10-slim}) can be reused across sandboxes with no
-Boxed-specific image registry to maintain. Two \texttt{tmpfs} mounts back
-\texttt{/tmp} and the \texttt{/output} artifact directory, so both are
-ephemeral and never touch the host filesystem.
+Boxed-specific image registry to maintain. The image root filesystem is
+read-only. Separate \texttt{tmpfs} mounts back \texttt{/tmp},
+\texttt{/output}, and the configured working directory, so user-written data
+is ephemeral and never touches the host filesystem.
 
 The container's own PID~1 is a \texttt{tail -f /dev/null} placeholder whose
 only job is to keep the namespace alive; \texttt{boxed-agent} is launched
 separately by \texttt{Connect} as a Docker \texttt{exec} whose attached stream
-carries JSON-RPC. We state this explicitly because the distinction has
+carries JSON-RPC. The distinction is stated explicitly because it has
 security consequences: the agent is a child of the container's init rather
 than init itself, so a workload sharing the sandbox's PID namespace can see
 it, which is one reason the permissive \texttt{ptrace} default discussed in
@@ -574,31 +588,38 @@ process rather than requiring the caller to poll a status endpoint
 (Fig.~\ref{fig:lifecycle}). The first \texttt{exec} after \texttt{create}
 absorbs the latency of the agent's JSON-RPC loop initializing. The client
 therefore observes a simple request--response model, and per-sandbox polling
-load disappears from the control plane---which matters precisely because agent
+load disappears from the control plane, which matters precisely because agent
 tasks create sandboxes in bulk.
 
 \subsection{Resource and network model}
-Every sandbox is created with a CPU quota (\texttt{NanoCPUs}) and a memory
-cgroup, defaulting to 1.0 core and \BoxedMemDefault{} and validated against
-ceilings of 4.0 cores and 8\,GiB. A TTL goroutine stops the sandbox when its
-timeout expires. Notably absent is any \texttt{PidsLimit}, which
-Section~\ref{sec:eval} shows is exploitable.
+Every sandbox is created with a CPU quota (\texttt{NanoCPUs}), a memory
+cgroup, and a \texttt{PidsLimit} of 256. The container root is read-only, all
+Linux capabilities are dropped, and \texttt{no-new-privileges} is enabled.
+The resource defaults remain 1.0 core and \BoxedMemDefault{}, with ceilings of
+4.0 cores and 8\,GiB. A TTL goroutine stops the sandbox when its timeout
+expires.
 
-The driver exposes a binary network choice via \texttt{EnableNetworking}: when
-false the container is attached to Docker's \texttt{none} network, leaving
-only loopback; when true it joins the default bridge with full host-bridged
-egress. The \texttt{driver.NetworkPolicy} type already accepts an egress
-allow-list, but enforcement of fine-grained rules---per-sandbox
-\texttt{iptables} chains on the container's veth, for example---is roadmap,
-not implemented. This has a direct consequence for the escape evaluation:
-egress attempts to RFC1918 and link-local metadata addresses are plausibly
-interdicted by Docker Desktop's NAT topology rather than by any Boxed policy,
-and we score them accordingly in Section~\ref{sec:eval}.
+The Docker backend always uses Docker's \texttt{none} network, leaving only
+loopback. Requests that enable networking or specify an allow-list are rejected
+until Boxed implements an enforceable per-sandbox egress policy. This is a
+deliberate fail-closed restriction rather than a claim that Docker's default
+bridge is a sufficient egress control.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Evaluation}\label{sec:eval}
 
-We evaluate Boxed along five axes: cold-start latency, throughput under
+\subsection{Evaluation status}
+The CSV traces included with this revision were collected before the hardening
+changes described in Section~\ref{sec:impl} and before a defect in the agent's
+exit-status reporting was corrected. The agent emitted exit code zero after a
+command stream ended, so the historical pass/fail labels in the agent trace do
+not establish task correctness. Likewise, the escape-probe table describes the
+pre-hardening Docker configuration, not the current implementation. These
+results are retained as an auditable baseline and are not evidence for the
+revised implementation. Before submission, the full suite must be rerun on
+the hardened revision, on repeated trials, and on a native Linux host.
+
+The evaluation covers five axes: cold-start latency, throughput under
 concurrency, idle per-sandbox overhead, adversarial escape resistance, and
 end-to-end LLM-agent task latency. The harness and raw CSV traces are
 open-source alongside the paper.
@@ -617,7 +638,7 @@ which isolates substrate overhead from application computation. Only the
 Docker driver is exercised; Firecracker and Wasm remain stubs.
 
 \subsection{Cold-Start Latency}
-We measure end-to-end create+exec+destroy time for \BoxedColdN{} sequential
+End-to-end create+exec+destroy time was measured over \BoxedColdN{} sequential
 sandboxes on a warm engine (Fig.~\ref{fig:coldstart}). The median is
 \BoxedColdMedian{} with a tight interquartile band (IQR \BoxedColdIQR{}) and a
 heavy upper tail (p95 \BoxedColdPNinetyFive{}, p99 \BoxedColdPNinetyNine{}).
@@ -630,21 +651,21 @@ replication across hardware and operating systems is possible, and treat that
 replication as future work rather than a claim we have discharged.
 
 \begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/coldstart_cdf.pdf}
-  \caption{CDF of create, first-exec, and total latency over \BoxedColdN{}
-  sequential sandboxes.}
-  \label{fig:coldstart}
+ \centering
+ \includegraphics[width=\columnwidth]{figures/coldstart_cdf.pdf}
+ \caption{CDF of create, first-exec, and total latency over \BoxedColdN{}
+ sequential sandboxes.}
+ \label{fig:coldstart}
 \end{figure}
 
 \subsection{Throughput Under Concurrency}
-We sweep client concurrency $c \in \{1,2,4,8,16,32\}$, driving 80 sandbox
+Client concurrency was swept over $c \in \{1,2,4,8,16,32\}$, driving 80 sandbox
 lifecycles at each level, and report sustained sandboxes per second
 (Fig.~\ref{fig:throughput}, Table~\ref{tab:throughput}). Throughput rises
 monotonically to \BoxedPeakRPS{}~sandboxes/s at $c{=}\BoxedPeakConc{}$, dips
 slightly at $c{=}16$, and collapses to 2.35~sandboxes/s at $c{=}32$, where
 elapsed time for the same 80 lifecycles grows roughly $4\times$. No errors
-occurred at any level. We read the $c{=}16$ dip as host-noise variance rather
+occurred at any level. The $c{=}16$ dip is read as host-noise variance rather
 than a structural feature and do not over-interpret the curve shape; the
 $c{=}32$ collapse is large enough to be a real contention effect in Docker
 Desktop's LinuxKit VM, which multiplexes every container operation through a
@@ -652,11 +673,11 @@ single virtualized kernel. Section~\ref{sec:disc} discusses why we expect a
 native Linux/Firecracker deployment to lift this ceiling.
 
 \begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/throughput_curve.pdf}
-  \caption{Sustained sandbox-creation rate as a function of client
-  concurrency.}
-  \label{fig:throughput}
+ \centering
+ \includegraphics[width=\columnwidth]{figures/throughput_curve.pdf}
+ \caption{Sustained sandbox-creation rate as a function of client
+ concurrency.}
+ \label{fig:throughput}
 \end{figure}
 
 \begin{table}[t]
@@ -668,10 +689,10 @@ single trial each, zero errors throughout.}
 \toprule
 Concurrency $c$ & Completed & Elapsed (s) & Sandboxes/s \\
 \midrule
-1  & 80 & 35.04 & 2.28 \\
-2  & 80 & 18.24 & 4.39 \\
-4  & 80 & 12.42 & 6.44 \\
-\textbf{8}  & \textbf{80} & \textbf{8.16} & \textbf{9.81} \\
+1 & 80 & 35.04 & 2.28 \\
+2 & 80 & 18.24 & 4.39 \\
+4 & 80 & 12.42 & 6.44 \\
+\textbf{8} & \textbf{80} & \textbf{8.16} & \textbf{9.81} \\
 16 & 80 & 9.31 & 8.59 \\
 32 & 80 & 34.11 & 2.35 \\
 \bottomrule
@@ -679,7 +700,7 @@ Concurrency $c$ & Completed & Elapsed (s) & Sandboxes/s \\
 \end{table}
 
 \subsection{Per-Sandbox Idle Overhead}
-We sample each idle sandbox's resident-set size and CPU five seconds after
+Each idle sandbox's resident-set size and CPU were sampled five seconds after
 \texttt{create} returns (Fig.~\ref{fig:overhead}). Median RSS, as reported by
 \texttt{docker stats} via the container cgroup working set, is
 \BoxedRSSMedian{}; median CPU is \BoxedCPUMedian{}.
@@ -691,20 +712,20 @@ therefore treat the absolute number as a relative ordering rather than ground
 truth and plan re-measurement on Linux. That said, the order of magnitude is
 consistent with the design: the agent is a stripped Rust binary that holds no
 buffers, opens no files at startup, and parks on a single \texttt{tokio} event
-loop awaiting a JSON-RPC frame---in contrast to a Python- or Node-based agent
+loop awaiting a JSON-RPC frame, in contrast to a Python- or Node-based agent
 carrying an interpreter, module cache, and garbage-collector metadata even
 when idle. Across the dozens of concurrent sandboxes an agent operator may
 run, that difference compounds.
 
 \begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/overhead_violin.pdf}
-  \caption{Idle resident-set size and CPU per sandbox.}
-  \label{fig:overhead}
+ \centering
+ \includegraphics[width=\columnwidth]{figures/overhead_violin.pdf}
+ \caption{Idle resident-set size and CPU per sandbox.}
+ \label{fig:overhead}
 \end{figure}
 
-\subsection{Behavioural Escape Probe}\label{sec:escape}
-We exercise the sandbox with twelve attempts drawn from common container-escape
+\subsection{Pre-hardening Behavioural Escape Probe}\label{sec:escape}
+The sandbox was exercised with twelve attempts drawn from common container-escape
 patterns~\cite{runc-cve}: privileged \texttt{mount}, \texttt{/proc/1/root}
 traversal, Docker socket access, kernel module loading, raw-socket binding,
 namespace escape via \texttt{unshare}, egress to RFC1918, egress to link-local
@@ -717,7 +738,8 @@ Table~\ref{tab:escape} gives the full per-vector result.
 \begin{table}[t]
 \centering
 \caption{Behavioural escape probe: all twelve vectors, mapped to the threat
-classes of Section~\ref{sec:threat}. \BoxedEscapeDenied{}/\BoxedEscapeTotal{}
+classes of Section~\ref{sec:threat}, measured before the hardening revision.
+\BoxedEscapeDenied{}/\BoxedEscapeTotal{}
 (\BoxedEscapePct{}) denied. ``Locus'' records where the denial or failure
 plausibly originates; entries marked $\dagger$ are classifier artifacts
 discussed in the text, not demonstrated boundary crossings.}
@@ -728,19 +750,19 @@ discussed in the text, not demonstrated boundary crossings.}
 \toprule
 Vector & Threat & Verdict & Locus / gap exposed \\
 \midrule
-\texttt{mount\_host}  & T1,T2 & denied    & no \texttt{CAP\_SYS\_ADMIN} \\
-\texttt{modprobe}     & T2    & denied    & no \texttt{CAP\_SYS\_MODULE} \\
-\texttt{setns}        & T2    & denied    & namespace caps absent \\
-\texttt{rfc1918}      & T3    & denied    & Docker NAT, not Boxed policy \\
-\texttt{imds}         & T3    & denied    & Docker NAT, not Boxed policy \\
+\texttt{mount\_host} & T1,T2 & denied & no \texttt{CAP\_SYS\_ADMIN} \\
+\texttt{modprobe} & T2 & denied & no \texttt{CAP\_SYS\_MODULE} \\
+\texttt{setns} & T2 & denied & namespace caps absent \\
+\texttt{rfc1918} & T3 & denied & Docker NAT, not Boxed policy \\
+\texttt{imds} & T3 & denied & Docker NAT, not Boxed policy \\
 \midrule
-\texttt{ro\_root}     & T1    & undenied  & \texttt{ReadonlyRootfs} unset \\
-\texttt{raw\_socket}  & T2    & undenied  & \texttt{CapDrop: ALL} disabled \\
-\texttt{ptrace\_host} & T2,T3 & undenied  & seccomp permits \texttt{ptrace} \\
-\texttt{fork\_bomb}   & T4    & undenied  & no \texttt{PidsLimit} cgroup \\
-\texttt{mem\_bomb}    & T4    & undenied  & $\dagger$ signature not emitted \\
-\texttt{proc1\_root}  & T1    & undenied  & $\dagger$ in-sandbox root only \\
-\texttt{docker\_sock} & T2,T3 & undenied  & $\dagger$ socket not mounted \\
+\texttt{ro\_root} & T1 & undenied & \texttt{ReadonlyRootfs} unset \\
+\texttt{raw\_socket} & T2 & undenied & \texttt{CapDrop: ALL} disabled \\
+\texttt{ptrace\_host} & T2,T3 & undenied & seccomp permits \texttt{ptrace} \\
+\texttt{fork\_bomb} & T4 & undenied & no \texttt{PidsLimit} cgroup \\
+\texttt{mem\_bomb} & T4 & undenied & $\dagger$ signature not emitted \\
+\texttt{proc1\_root} & T1 & undenied & $\dagger$ in-sandbox root only \\
+\texttt{docker\_sock} & T2,T3 & undenied & $\dagger$ socket not mounted \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -754,8 +776,8 @@ we record them as such in Table~\ref{tab:escape}. With that caveat, the suite
 classifies \BoxedEscapeDenied{} of \BoxedEscapeTotal{} attempts
 (\BoxedEscapePct{}) as denied.
 
-Four of the seven undenied vectors correspond to real, locatable configuration
-gaps in the current Docker driver, each verifiable by reading the source:
+Four of the seven undenied vectors correspond to configuration gaps in the
+pre-hardening Docker driver:
 (i) the container rootfs is writable because \texttt{ReadonlyRootfs} is never
 set, so the write to \texttt{/etc} lands; (ii) the \texttt{CapDrop: ALL} block
 is commented out, so the container retains Docker's default capability set
@@ -780,11 +802,11 @@ simply not among the mounts the driver configures, so the probe observes an
 absent path. In each case the honest reading is that our classifier is too
 weak to adjudicate the vector, not that the sandbox failed. Replacing
 signature matching with post-condition verification against host
-state---did the file actually appear outside the mount namespace? did the
-process count actually exceed the cap?---would remove this ambiguity and is
+state, did the file actually appear outside the mount namespace? did the
+process count actually exceed the cap?, would remove this ambiguity and is
 the natural next iteration of the suite.
 
-We report the aggregate as \BoxedEscapeDenied{}/\BoxedEscapeTotal{} rather
+The aggregate is reported as \BoxedEscapeDenied{}/\BoxedEscapeTotal{} rather
 than adjusting it upward for the three artifacts, because the classifier is
 what we actually ran and re-scoring after the fact on the basis of a plausible
 reading would be exactly the kind of favourable post-hoc adjustment that makes
@@ -793,12 +815,15 @@ host escape in our tests. But each genuine gap thins the defence chain an
 operator would reasonably expect, which is why we treat them as bugs against
 this release rather than as design limitations.
 
-\subsection{End-to-End Agent Trace}
-We drive Boxed with a Gemini-based code-generation loop over \BoxedAgentN{}
+\subsection{Pre-fix Agent Trace}
+Boxed was driven by a Gemini-based code-generation loop over \BoxedAgentN{}
 HumanEval-style tasks~\cite{humaneval}: for each task the model emits a
 candidate Python function, Boxed executes it together with a self-checking
-assertion, and the harness records pass/fail. All \BoxedAgentN{} tasks pass
-(Fig.~\ref{fig:agent}). Median end-to-end wall-clock is
+assertion, and the harness records pass/fail. The historical report that all
+\BoxedAgentN{} tasks passed is invalid because the pre-fix agent emitted a
+zero exit status regardless of command outcome. Figure~\ref{fig:agent} and
+the associated timing trace remain useful only as a pre-fix operational trace.
+The reported median end-to-end wall-clock was
 \BoxedAgentMedianTotal{}, of which \BoxedAgentLLMShare{} is model inference
 and the remainder is dominated by sandbox creation.
 
@@ -808,23 +833,23 @@ median of \BoxedAgentCreateMedian{}, roughly two orders of magnitude above the
 phase is the same code path in both experiments and the only variable is the
 accumulated state of Docker Desktop's LinuxKit VM after three prior
 load-generating phases, we attribute the degradation to hypervisor contention
-rather than to the Boxed runtime---but we note it is an attribution supported
+rather than to the Boxed runtime, but we note it is an attribution supported
 by the experimental ordering, not by a controlled comparison, and a Linux
 replication would settle it. Either way the gap motivates both native Linux
 with Firecracker as a deployment target and pool-based reuse as control-plane
 work (Section~\ref{sec:disc}).
 
 \begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/agent_breakdown.pdf}
-  \caption{Per-task LLM time versus sandbox time over \BoxedAgentN{}
-  HumanEval-style code-generation tasks.}
-  \label{fig:agent}
+ \centering
+ \includegraphics[width=\columnwidth]{figures/agent_breakdown.pdf}
+ \caption{Per-task LLM time versus sandbox time over \BoxedAgentN{}
+ HumanEval-style code-generation tasks.}
+ \label{fig:agent}
 \end{figure}
 
 \subsection{Threats to Validity}
 All measurements were taken on a single MacBook Pro (M1~Pro, 16\,GB) running
-typical background processes---browser, IDE, chat clients---rather than a
+typical background processes (browser, IDE, chat clients) rather than a
 quiesced benchmark host. We did not pin Boxed's processes to dedicated cores,
 isolate Docker Desktop's LinuxKit VM, or otherwise insulate the workload from
 incidental host activity. The heavy upper tail of the cold-start distribution
@@ -845,16 +870,15 @@ that independent re-runs on quiesced Linux hosts can refine the picture.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Discussion}\label{sec:disc}
 
-\subsection{Hardening checklist for the current driver}
-The Docker driver is the only production-ready backend in this release, and
-its default posture is weaker than it should be. Table~\ref{tab:hardening}
-states each gap, the vector it exposed in Section~\ref{sec:escape}, and the
-remediation. Every item is a one-line configuration change in the driver's
-\texttt{HostConfig}; none requires design work. We classify them as
-correctness bugs against this release, scoped for the next minor version, and
-enforced by default in the planned Firecracker driver. Operators running the
-current release on untrusted input should apply the right-hand column
-themselves.
+\subsection{Hardening status}
+The Docker driver is the only implemented backend. The root filesystem,
+capability, process-count, privilege-escalation, and default-networking gaps
+identified by the historical probe have been fixed in the current source.
+Table~\ref{tab:hardening} records the corresponding changes. A custom seccomp
+profile and fine-grained egress allow-list remain unimplemented; networked
+execution is therefore rejected. The revised driver still requires a fresh,
+post-condition-based security evaluation before it can support a security
+claim.
 
 \begin{table}[t]
 \centering
@@ -862,16 +886,16 @@ themselves.
 \label{tab:hardening}
 \scriptsize
 \setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}lll@{}}
+\begin{tabular}{@{}p{.27\columnwidth}p{.22\columnwidth}p{.43\columnwidth}@{}}
 \toprule
-Gap & Vector & Remediation \\
+Historical gap & Vector & Current status \\
 \midrule
-Writable rootfs          & \texttt{ro\_root}     & set \texttt{ReadonlyRootfs} \\
-Default capability set   & \texttt{raw\_socket}  & \texttt{CapDrop: ALL} + allow-list \\
-No process cap           & \texttt{fork\_bomb}   & set \texttt{PidsLimit} \\
-Permissive \texttt{ptrace} & \texttt{ptrace\_host} & custom seccomp profile \\
-No egress enforcement    & ---                   & per-sandbox \texttt{iptables} \\
-Oversize artifacts dropped & ---                 & implement upload path \\
+Writable rootfs & \texttt{ro\_root} & fixed: \texttt{ReadonlyRootfs} \\
+Default capability set & \texttt{raw\_socket} & fixed: \texttt{CapDrop: ALL} \\
+No process cap & \texttt{fork\_bomb} & fixed: \texttt{PidsLimit} \\
+Permissive \texttt{ptrace} & \texttt{ptrace\_host} & pending: custom seccomp profile \\
+No egress enforcement &, & fail closed: networking rejected \\
+Oversize artifacts dropped &, & implement upload path \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -885,22 +909,25 @@ LinuxKit VM that must multiplex every container operation through one
 virtualized kernel. We expect a native Linux deployment with a Firecracker
 driver to reduce create latency substantially and to raise the concurrency
 ceiling, because sandbox creation would distribute across the full physical
-core count without the hypervisor hop. We state this as an expectation, not a
+core count without the hypervisor hop. This is stated as an expectation, not a
 result: we have not measured it, and the Firecracker driver is a stub.
 
 \subsection{Pool-based sandbox reuse}
 The control plane maintains a logical sandbox pool, but the Docker driver
 creates a fresh container per request. That choice buys a known-clean starting
-state---no residual filesystem or process state from a prior execution---at
+state, no residual filesystem or process state from a prior execution, at
 the cost of paying \BoxedCreateMedian{} of container instantiation on every
 call, which Section~\ref{sec:eval} identifies as the dominant term in the
 \BoxedColdMedian{} median.
 
 Reusing a warmed sandbox for compatible follow-up requests would amortize that
-cost. Compatibility is naturally keyed on the tuple of base image, network
-policy, and resource limits; a reset between uses---killing descendant
+cost. Oakes \emph{et al.}'s SOCK~\cite{sock} demonstrates the approach in a
+serverless setting, using an LRU cache of paused containers to avoid repeated
+instantiation, which is evidence that the design works even though their access
+pattern differs from an agent's. Compatibility is naturally keyed on the tuple of base image, network
+policy, and resource limits; a reset between uses (killing descendant
 processes, clearing \texttt{/tmp} and \texttt{/output}, dropping injected
-files---is far cheaper than a full teardown and recreate. The roadmap has
+files) is far cheaper than a full teardown and recreate. The roadmap has
 three parts: an LRU eviction policy bounding idle sandboxes, a
 compatibility-keyed lookup from \texttt{SandboxConfig} to pool entries, and a
 reset handshake the in-sandbox agent acknowledges over JSON-RPC. The driver
@@ -912,8 +939,8 @@ optimization remaining.
 
 \subsection{Multi-host scheduling}
 Boxed today is single-host. A scheduler placing sandboxes across worker
-nodes---and accounting for \texttt{NetworkPolicy} at placement time so that
-co-located sandboxes cannot hold conflicting egress policies---is the natural
+nodes, and accounting for \texttt{NetworkPolicy} at placement time so that
+co-located sandboxes cannot hold conflicting egress policies, is the natural
 next step for deployments whose aggregate concurrency exceeds one machine.
 
 \subsection{A Wasm driver, when the ecosystem allows}
@@ -929,32 +956,59 @@ agent compiled for WASI; the control plane, artifact protocol, and SDK are
 unchanged. That is the payoff of keeping the interface narrow.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Future Work}\label{sec:future}
+
+Four directions follow directly from the limitations reported above.
+
+\emph{Validating the hardened implementation.} The root filesystem,
+capability, process-count, privilege-escalation, and default-networking changes
+have been applied in the source. The immediate priority is to rerun the
+twelve-vector probe using post-condition checks and report the revised
+per-vector table, so that the effect of each change is attributable.
+
+\emph{Completing the Firecracker driver.} The driver interface was designed so
+that a stronger isolation backend can be substituted without altering the
+control plane, and the Firecracker backend is currently a stub. Completing it
+would place a virtualization boundary between the sandbox and the host, which
+addresses the escape vectors that remain open under the shared-kernel Docker
+driver, and would test whether the four-method interface is in fact sufficient
+for a microVM.
+
+\emph{Reducing per-execution cost through sandbox reuse.} Cold start dominates
+the measured latency, and the current design pays it on every task. A pool of
+warm sandboxes would amortize creation across executions, at the cost of
+weakening the guarantee that each execution begins from a clean state. The
+trade-off between reuse depth and isolation strength is worth measuring rather
+than assuming.
+
+\emph{Evaluation beyond a single host.} All measurements here come from one
+laptop under Docker Desktop, which on macOS interposes a hypervisor. A native
+Linux deployment and a multi-host scheduler would establish how much of the
+observed latency is attributable to that layer, and would extend the throughput
+results past the point where a single machine saturates.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}\label{sec:conc}
 
-Boxed is a small, opinionated substrate for the increasingly common case of an
-LLM agent that creates, exercises, and destroys sandboxed execution
-environments hundreds of times per task. By keeping the driver interface
-narrow, the in-sandbox agent lean, and the deployment story BYOK and
-self-hostable, it offers operators an alternative to unsafe roll-your-own
-Docker on one side and vendor-locked SaaS on the other. On a hypervisor-backed
-laptop the substrate sustains \BoxedColdMedian{} median cold start and
-\BoxedPeakRPS{}~sandboxes/s peak throughput, and completes
-\BoxedAgentPass{} of an end-to-end LLM code-generation trace.
+Boxed is a Docker-based execution substrate for an LLM agent that creates,
+exercises, and destroys sandboxed environments many times per task. It provides
+a streaming in-sandbox agent and an interface intended to accommodate future
+backends. The present implementation defaults to a restricted Docker
+configuration and fails closed on networking until policy enforcement exists.
 
-We have also reported, in full and without adjustment, what the current
-release does not do: seven of twelve adversarial vectors go undenied, four of
-them because of specific configuration defaults we name and locate; oversize
-artifacts are silently dropped; egress policy is accepted but not enforced;
-and the strongest performance claims rest on single trials from a contended
-laptop. A substrate that asks operators to run untrusted code owes them that
-accounting more than it owes them a favourable number. The Firecracker and
-Wasm drivers, the hardening checklist in Table~\ref{tab:hardening}, and
-Linux replication of every measurement here are the next release.
+The historical performance, security, and agent-trace data are retained for
+auditability, but do not support claims about this revised implementation. In
+particular, the agent pass/fail labels were invalidated by an exit-status bug;
+the historical escape probe predates hardening; and the performance data is a
+single-run Docker Desktop measurement. Repeated native-Linux measurements,
+post-condition-based security tests, verified agent-task correctness, and an
+implemented second backend are required before this manuscript is submitted as
+an IEEE research paper.
 
 \section*{Availability}
-The complete implementation---Go control plane, Rust in-sandbox agent, Docker
+The complete implementation, Go control plane, Rust in-sandbox agent, Docker
 driver, benchmark harness, raw CSV traces, and reproduction
-instructions---is available under the MIT license at
+instructions, is available under the MIT license at
 \url{https://github.com/akshayaggarwal99/boxed}. Every performance number in
 this paper is generated from those traces by
 \texttt{bench/analyze/stats.py} and injected into the manuscript as a macro,

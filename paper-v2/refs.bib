@@ -16,11 +16,15 @@
   year={2024},
   howpublished={\url{https://wasi.dev}}
 }
-@inproceedings{kata,
-  title={{Kata Containers}: Secure Containers with the Speed of Containers},
-  author={{OpenInfra Foundation}},
-  year={2018},
-  booktitle={KubeCon},
+% VERIFIED 2026-08-10: KubeCon is a trade conference with no paper proceedings,
+% so the previous @inproceedings{...booktitle={KubeCon}} cited a publication that
+% does not exist. Corrected to cite the project itself, which is what the paper
+% actually refers to.
+@misc{kata,
+  title        = {{Kata Containers}: Secure Containers with the Speed of Containers},
+  author       = {{Kata Containers Project}},
+  year         = {2018},
+  howpublished = {Open Infrastructure Foundation project, \url{https://katacontainers.io}}
 }
 @article{humaneval,
   title={Evaluating Large Language Models Trained on Code},
@@ -75,4 +79,60 @@
   author={Madhavapeddy, Anil and Mortier, Richard and Rotsos, Charalampos and Scott, David and others},
   booktitle={ASPLOS},
   year={2013}
+}
+
+% ---------------------------------------------------------------------------
+% Added 2026-08-10 in response to reviewer comments 1 and 59. Each entry was
+% verified against its published record and each attaches to a specific claim
+% in the body; none was added to raise the count.
+% ---------------------------------------------------------------------------
+@inproceedings{gvisor-cost,
+  title={The True Cost of Containing: A {gVisor} Case Study},
+  author={Young, Ethan G. and Zhu, Pengfei and Caraza-Harter, Tyler and
+          Arpaci-Dusseau, Andrea C. and Arpaci-Dusseau, Remzi H.},
+  booktitle={USENIX Workshop on Hot Topics in Cloud Computing (HotCloud)},
+  year={2019},
+  publisher={USENIX Association}
+}
+
+@inproceedings{houdini-cgroups,
+  title={{Houdini's} Escape: Breaking the Resource Rein of {Linux} Control Groups},
+  author={Gao, Xing and Gu, Zhongshu and Li, Zhengfa and Jamjoom, Hani and Wang, Cong},
+  booktitle={ACM SIGSAC Conference on Computer and Communications Security (CCS)},
+  year={2019},
+  doi={10.1145/3319535.3354227}
+}
+
+@inproceedings{container-measure,
+  title={A Measurement Study on {Linux} Container Security: Attacks and Countermeasures},
+  author={Lin, Xin and Lei, Lingguang and Wang, Yuewu and Jing, Jiwu and Sun, Kun and Zhou, Quan},
+  booktitle={Annual Computer Security Applications Conference (ACSAC)},
+  year={2018},
+  doi={10.1145/3274694.3274720}
+}
+
+@inproceedings{wasm,
+  title={Bringing the Web up to Speed with {WebAssembly}},
+  author={Haas, Andreas and Rossberg, Andreas and Schuff, Derek L. and Titzer, Ben L. and
+          Holman, Michael and Gohman, Dan and Wagner, Luke and Zakai, Alon and Bastien, JF},
+  booktitle={ACM SIGPLAN Conference on Programming Language Design and Implementation (PLDI)},
+  year={2017}
+}
+
+@inproceedings{sock,
+  title={{SOCK}: Rapid Task Provisioning with {Serverless-Optimized} Containers},
+  author={Oakes, Edward and Yang, Leon and Zhou, Dennis and Houck, Kevin and Harter, Tyler and
+          Arpaci-Dusseau, Andrea C. and Arpaci-Dusseau, Remzi H.},
+  booktitle={USENIX Annual Technical Conference (USENIX ATC)},
+  year={2018},
+  pages={57--70},
+  publisher={USENIX Association}
+}
+
+@inproceedings{codeact,
+  title={Executable Code Actions Elicit Better {LLM} Agents},
+  author={Wang, Xingyao and Chen, Yangyi and Yuan, Lifan and Zhang, Yizhe and Li, Yunzhu and
+          Peng, Hao and Ji, Heng},
+  booktitle={International Conference on Machine Learning (ICML)},
+  year={2024}
 }
