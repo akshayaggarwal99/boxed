@@ -24,7 +24,7 @@ the author.
 - [x] Threats to validity names the T3 gap, the VM, the non-quiesced host, and the create->destroy throughput definition.
 - [x] Anjali et al. 2020 (abstract + Secs. 1-2 read from the authors' PDF), Wang et al. 2025 (runtime section read from arXiv HTML), and Lin et al. 2018 (abstract) verified; the three related-work sentences now say only what those texts say.
 - [ ] Retype the abstract, introduction, and the Evaluation prose in your own voice. The current text was drafted from the data by a model as scaffold and should not be submitted as-is (see research/paper-writing standard).
-- [ ] Run the human-prose pass (research-paper skill, references/human-prose.md) and a Turnitin AI check before submission.
+- [x] Human-prose pass done 1 Sep 2026 (humanizer): antithesis closers, counted signposts, -ing tails, and padding triads removed; body now 8.6 pages. Still run Turnitin before submission.
 - [x] Body is exactly 9 pages, references on page 10 (IC2E 2026 rule). Re-check against the 2027 CFP when it appears.
 
 ## Artifact
