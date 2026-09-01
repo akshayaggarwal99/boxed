@@ -10,10 +10,11 @@ import (
 )
 
 func main() {
-	scenario := flag.String("scenario", "", "coldstart|throughput|overhead|agent")
+	scenario := flag.String("scenario", "", "coldstart|throughput|overhead|agent|baseline")
 	out := flag.String("out", "results", "output dir for CSVs")
 	n := flag.Int("n", 1000, "iterations")
 	conc := flag.Int("conc", 1, "concurrency")
+	mode := flag.String("mode", "hardened", "baseline mode: default|hardened")
 	endpoint := flag.String("endpoint", "http://127.0.0.1:8080", "Boxed control plane URL")
 	apiKey := flag.String("api-key", os.Getenv("BOXED_API_KEY"), "API key")
 	flag.Parse()
@@ -36,6 +37,8 @@ func main() {
 		scenarios.RunOverhead(c, *n, *out)
 	case "agent":
 		scenarios.RunAgentTrace(c, *n, *out)
+	case "baseline":
+		scenarios.RunBaseline(*mode, *n, *out)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown scenario %q\n", *scenario)
 		os.Exit(2)

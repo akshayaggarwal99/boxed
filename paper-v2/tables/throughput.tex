@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering
+\caption{Throughput sweep: 80 create$\rightarrow$destroy lifecycles per level, 10 independent sweeps. Mean sandboxes/s with 95\% confidence interval (Student's $t$) and the range across sweeps. 0 errors in 4800 lifecycles.}
+\label{tab:throughput}
+\footnotesize
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+Concurrency $c$ & Sandboxes/s (mean) & 95\% CI & Range \\
+\midrule
+1 & {6.98} & $\pm$0.42 & 5.70--7.59 \\
+2 & {11.44} & $\pm$0.97 & 9.16--13.49 \\
+4 & {14.32} & $\pm$2.25 & 6.34--16.83 \\
+8 & {16.43} & $\pm$2.98 & 9.99--21.29 \\
+16 & \textbf{17.19} & $\pm$2.68 & 12.23--22.77 \\
+32 & {17.14} & $\pm$2.41 & 11.73--20.94 \\
+\bottomrule
+\end{tabular}
+\end{table}

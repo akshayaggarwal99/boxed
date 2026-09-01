@@ -91,3 +91,5 @@ bench/results/*.csv
 # not referenced by paper-v2/main.tex.
 paper-v2/figures/tikz_*.png
 paper-v2/figures/architecture.pdf
+bench/.env
+paper-v2/*.bak-*

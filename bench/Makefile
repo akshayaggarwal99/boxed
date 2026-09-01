@@ -1,6 +1,7 @@
 .PHONY: build coldstart throughput overhead agent escapes plots all clean
 
 ENDPOINT?=http://127.0.0.1:8080
+RUN?=hardened-2026-09
 KEY?=$(BOXED_API_KEY)
 
 build:
@@ -18,14 +19,15 @@ overhead: build
 	./bin/boxed-bench --scenario=overhead --n=30 --endpoint=$(ENDPOINT) --api-key=$(KEY) --out=results
 
 agent: build
-	./bin/boxed-bench --scenario=agent --n=20 --endpoint=$(ENDPOINT) --api-key=$(KEY) --out=results
+	@test -n "$$ANTHROPIC_API_KEY" || (echo "ANTHROPIC_API_KEY not set" && exit 1)
+	./bin/boxed-bench --scenario=agent --n=20 --endpoint=$(ENDPOINT) --api-key=$(KEY) --out=results/$(RUN)
 
 escapes:
 	ENDPOINT=$(ENDPOINT) BOXED_API_KEY=$(KEY) bash security/escapes.sh > results/escapes.csv
 
 plots:
-	python3 analyze/plots.py results ../paper-v2/figures
-	python3 analyze/stats.py results ../paper-v2/tables
+	python3 analyze/plots.py results/$(RUN) ../paper-v2/figures
+	python3 analyze/stats.py results/$(RUN) ../paper-v2/tables results/legacy-2026-05-docker-desktop
 
 all: coldstart throughput overhead agent escapes plots
 

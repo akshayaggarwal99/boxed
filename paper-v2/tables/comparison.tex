@@ -4,21 +4,22 @@
 figures for systems other than Boxed are vendor claims measured under
 undisclosed conditions and are reproduced as reported, not validated by us;
 the Boxed figure is the end-to-end create+exec+destroy median of
-Section~\ref{sec:eval}.}
+Section~\ref{sec:lifecycle} and includes an exec, which the vendor figures
+may not.}
 \label{tab:compare}
 \footnotesize
-\begin{tabular}{@{}lllccll@{}}
+\begin{tabular}{@{}lllclll@{}}
 \toprule
-System & Isolation & Cold start & Pluggable & BYOK / & License & First-class \\
-       &           &            & drivers   & self-host &       & artifacts \\
+System & Isolation & Cold start & Backend & Self-host & License & First-class \\
+       &           &            & selectable &         &         & artifacts \\
 \midrule
-\textbf{Boxed (this work)} & Docker $\rightarrow$ FC$^{*}$ / Wasm$^{*}$ & \BoxedColdMedian{} (measured) & yes & yes & MIT & yes \\
+\textbf{Boxed (this work)} & Docker (\texttt{runc}) & \BoxedColdMedian{} (measured) & interface only$^{*}$ & yes & MIT & yes \\
 E2B~\cite{e2b}             & Firecracker            & $\sim$150\,ms (claim) & no  & limited & Apache-2.0 & yes \\
 Modal Sandbox~\cite{modal} & gVisor + Firecracker   & $\sim$1.5\,s (claim)  & no  & no      & proprietary & yes \\
 Daytona~\cite{daytona}     & Docker                 & not reported          & no  & yes     & AGPL & no \\
-Cloudflare Sandbox~\cite{cfsandbox} & V8 isolates   & $\sim$5\,ms (claim)   & limited & no & proprietary & limited \\
+Cloudflare Sandbox~\cite{cfsandbox} & V8 isolates   & $\sim$5\,ms (claim)   & no & no & proprietary & limited \\
 \bottomrule
 \end{tabular}
 \\[2pt]
-{\footnotesize $^{*}$Stubbed; Docker is the only production-ready driver in the current Boxed release.}
+{\footnotesize $^{*}$The driver interface is designed for other backends; Docker is the only implementation in this release.}
 \end{table*}

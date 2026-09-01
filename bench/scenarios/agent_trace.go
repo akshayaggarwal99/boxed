@@ -1,109 +1,106 @@
 package scenarios
 
+// End-to-end agent trace: a model writes a Python function for a HumanEval
+// task, Boxed executes it against the official HumanEval test, and the harness
+// records where the wall-clock went. Every run records the model identifier,
+// request configuration, token usage, stop reason, and the real process exit
+// status, and writes the raw completion and the executed program to a JSONL
+// file next to the CSV so the pass/fail labels can be audited.
+//
+// Tasks are the first n entries of the official HumanEval release
+// (data/HumanEval.jsonl, Chen et al. 2021), selected in file order.
+
 import (
-	"bytes"
+	"bufio"
+	"context"
+	"crypto/sha256"
 	"encoding/csv"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/anthropics/anthropic-sdk-go"
 )
 
-// Tasks: subset of HumanEval-style problems. Cite HumanEval (Chen et al., 2021).
-var humanEval = []struct {
-	id     string
-	prompt string
-	check  string // python expression that must eval True after running gen code
-}{
-	{"sum_list", "Write a python function `sum_list(xs)` returning the sum of a list of ints. Output ONLY the function body in a ```python block.", "sum_list([1,2,3])==6 and sum_list([])==0"},
-	{"is_prime", "Write `is_prime(n)` returning True iff n is a prime > 1. Output ONLY the function in a ```python block.", "is_prime(2) and is_prime(7) and not is_prime(1) and not is_prime(9)"},
-	{"reverse_str", "Write `reverse_str(s)` returning the reverse of string s. Output ONLY the function in ```python.", "reverse_str('abc')=='cba' and reverse_str('')==''"},
-	{"fib", "Write `fib(n)` returning the nth Fibonacci number with fib(0)=0, fib(1)=1. Output ONLY in ```python.", "fib(0)==0 and fib(1)==1 and fib(10)==55"},
-	{"gcd", "Write `gcd(a,b)` returning greatest common divisor. Output ONLY in ```python.", "gcd(12,8)==4 and gcd(17,5)==1"},
-	{"count_vowels", "Write `count_vowels(s)` counting aeiou case-insensitively. Output ONLY in ```python.", "count_vowels('Hello')==2 and count_vowels('xyz')==0"},
-	{"flatten", "Write `flatten(xs)` flattening one level of nested lists. Output ONLY in ```python.", "flatten([[1,2],[3]])==[1,2,3]"},
-	{"unique", "Write `unique(xs)` returning xs with duplicates removed, preserving order. Output ONLY in ```python.", "unique([1,2,1,3,2])==[1,2,3]"},
-	{"max_diff", "Write `max_diff(xs)` returning max(xs)-min(xs), 0 if empty. Output ONLY in ```python.", "max_diff([1,5,3])==4 and max_diff([])==0"},
-	{"is_palindrome", "Write `is_palindrome(s)` ignoring case. Output ONLY in ```python.", "is_palindrome('Racecar') and not is_palindrome('hello')"},
-	{"count_words", "Write `count_words(s)` returning number of whitespace-separated tokens. Output ONLY in ```python.", "count_words('a b c')==3 and count_words('  ')==0"},
-	{"factorial", "Write `factorial(n)` for n>=0. Output ONLY in ```python.", "factorial(5)==120 and factorial(0)==1"},
-	{"second_max", "Write `second_max(xs)` returning the second largest distinct element, or None if <2 distinct. Output ONLY in ```python.", "second_max([1,2,3,3])==2 and second_max([1])==None"},
-	{"average", "Write `average(xs)` returning the mean as float, 0.0 if empty. Output ONLY in ```python.", "abs(average([1,2,3])-2.0)<1e-9"},
-	{"rotate", "Write `rotate(xs,k)` rotating list left by k positions. Output ONLY in ```python.", "rotate([1,2,3,4],1)==[2,3,4,1]"},
-	{"sort_desc", "Write `sort_desc(xs)` returning xs sorted descending. Output ONLY in ```python.", "sort_desc([3,1,2])==[3,2,1]"},
-	{"capitalize_words", "Write `capitalize_words(s)` capitalizing first letter of each whitespace-separated word. Output ONLY in ```python.", "capitalize_words('hello world')=='Hello World'"},
-	{"is_anagram", "Write `is_anagram(a,b)` case-insensitively. Output ONLY in ```python.", "is_anagram('listen','Silent') and not is_anagram('a','b')"},
-	{"to_binary", "Write `to_binary(n)` returning the binary string of non-negative int n without prefix. Output ONLY in ```python.", "to_binary(5)=='101' and to_binary(0)=='0'"},
-	{"merge_sorted", "Write `merge_sorted(a,b)` merging two sorted lists. Output ONLY in ```python.", "merge_sorted([1,3,5],[2,4])==[1,2,3,4,5]"},
+type humanEvalTask struct {
+	TaskID     string `json:"task_id"`
+	Prompt     string `json:"prompt"`
+	EntryPoint string `json:"entry_point"`
+	Test       string `json:"test"`
 }
 
-type geminiResp struct {
-	Candidates []struct {
-		Content struct {
-			Parts []struct {
-				Text string `json:"text"`
-			} `json:"parts"`
-		} `json:"content"`
-	} `json:"candidates"`
-}
-
-func callGemini(apiKey, prompt string) (string, time.Duration, error) {
-	model := os.Getenv("GEMINI_MODEL")
-	if model == "" {
-		model = "gemini-2.5-flash"
-	}
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", model, apiKey)
-	body, _ := json.Marshal(map[string]any{
-		"contents": []map[string]any{{
-			"parts": []map[string]string{{"text": prompt}},
-		}},
-	})
-	t0 := time.Now()
-	resp, err := http.Post(url, "application/json", bytes.NewReader(body))
+func loadHumanEval(path string) ([]humanEvalTask, error) {
+	f, err := os.Open(path)
 	if err != nil {
-		return "", 0, err
+		return nil, err
 	}
-	defer resp.Body.Close()
-	b, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 300 {
-		return "", time.Since(t0), fmt.Errorf("gemini %d: %s", resp.StatusCode, string(b))
+	defer f.Close()
+	var out []humanEvalTask
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 1<<20), 1<<20)
+	for sc.Scan() {
+		var t humanEvalTask
+		if err := json.Unmarshal(sc.Bytes(), &t); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
 	}
-	var g geminiResp
-	if err := json.Unmarshal(b, &g); err != nil {
-		return "", time.Since(t0), err
-	}
-	if len(g.Candidates) == 0 || len(g.Candidates[0].Content.Parts) == 0 {
-		return "", time.Since(t0), fmt.Errorf("empty completion")
-	}
-	return g.Candidates[0].Content.Parts[0].Text, time.Since(t0), nil
+	return out, sc.Err()
 }
 
-var codeBlock = regexp.MustCompile("(?s)```python\\s*(.*?)\\s*```")
+const agentSystemPrompt = "You complete Python functions. The user gives a function signature and docstring. Reply with the complete function, including the signature, inside a single ```python code block. Do not include tests, prints, or explanation."
+
+var codeBlock = regexp.MustCompile("(?s)```(?:python)?\\s*\n(.*?)```")
 
 func extractCode(s string) string {
 	m := codeBlock.FindStringSubmatch(s)
 	if len(m) >= 2 {
 		return m[1]
 	}
-	// fallback: assume the whole reply is code
 	return s
 }
 
+type agentTraceRecord struct {
+	TaskID       string `json:"task_id"`
+	Model        string `json:"model"`
+	Timestamp    string `json:"timestamp"`
+	PromptSHA256 string `json:"prompt_sha256"`
+	StopReason   string `json:"stop_reason"`
+	InputTokens  int64  `json:"input_tokens"`
+	OutputTokens int64  `json:"output_tokens"`
+	Completion   string `json:"completion"`
+	Program      string `json:"program"`
+	Stdout       string `json:"stdout"`
+	Stderr       string `json:"stderr"`
+	ExitCode     int    `json:"exit_code"`
+	Passed       bool   `json:"passed"`
+}
+
 func RunAgentTrace(c Client, n int, outDir string) {
-	apiKey := os.Getenv("GEMINI_API_KEY")
-	if apiKey == "" {
-		log.Fatal("GEMINI_API_KEY required")
+	model := os.Getenv("BOXED_AGENT_MODEL")
+	if model == "" {
+		model = "claude-opus-5"
 	}
-	if n > len(humanEval) {
-		n = len(humanEval)
+	dataPath := os.Getenv("HUMANEVAL_PATH")
+	if dataPath == "" {
+		dataPath = "data/HumanEval.jsonl"
 	}
+	tasks, err := loadHumanEval(dataPath)
+	if err != nil {
+		log.Fatalf("load HumanEval: %v", err)
+	}
+	if n > len(tasks) {
+		n = len(tasks)
+	}
+	client := anthropic.NewClient() // ANTHROPIC_API_KEY from the environment
+	ctx := context.Background()
 
 	f, err := os.Create(filepath.Join(outDir, "agent_trace.csv"))
 	if err != nil {
@@ -112,49 +109,91 @@ func RunAgentTrace(c Client, n int, outDir string) {
 	defer f.Close()
 	w := csv.NewWriter(f)
 	defer w.Flush()
-	_ = w.Write([]string{"task", "llm_ms", "create_ms", "exec_ms", "destroy_ms", "total_ms", "passed"})
+	_ = w.Write([]string{"task", "model", "timestamp", "llm_ms", "input_tokens", "output_tokens",
+		"stop_reason", "create_ms", "exec_ms", "destroy_ms", "total_ms", "exit_code", "passed"})
+
+	jf, err := os.Create(filepath.Join(outDir, "agent_trace.jsonl"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer jf.Close()
+	jw := json.NewEncoder(jf)
 
 	for i := 0; i < n; i++ {
-		t := humanEval[i]
-		reply, llmDur, err := callGemini(apiKey, t.prompt)
+		t := tasks[i]
+		ts := time.Now().UTC().Format(time.RFC3339)
+		sum := sha256.Sum256([]byte(agentSystemPrompt + "\x00" + t.Prompt))
+
+		t0 := time.Now()
+		resp, err := client.Messages.New(ctx, anthropic.MessageNewParams{
+			Model:     anthropic.Model(model),
+			MaxTokens: 4096,
+			System:    []anthropic.TextBlockParam{{Text: agentSystemPrompt}},
+			Messages: []anthropic.MessageParam{
+				anthropic.NewUserMessage(anthropic.NewTextBlock(t.Prompt)),
+			},
+		})
+		llmDur := time.Since(t0)
 		if err != nil {
-			log.Printf("%s gemini: %v", t.id, err)
-			_ = w.Write([]string{t.id, fmt.Sprintf("%.3f", ms(llmDur)), "", "", "", "", "ERR"})
+			log.Printf("%s model: %v", t.TaskID, err)
+			_ = w.Write([]string{t.TaskID, model, ts, fmt.Sprintf("%.3f", ms(llmDur)), "", "", "error", "", "", "", "", "", "ERR"})
 			w.Flush()
 			continue
 		}
-		code := extractCode(reply)
-		// Build a self-checking program
-		fullCode := code + "\nimport sys\nsys.exit(0 if (" + t.check + ") else 1)\n"
+		var reply strings.Builder
+		for _, b := range resp.Content {
+			if tb, ok := b.AsAny().(anthropic.TextBlock); ok {
+				reply.WriteString(tb.Text)
+			}
+		}
+		completion := extractCode(reply.String())
 
-		t0 := time.Now()
+		// prompt supplies the imports; the completion re-declares the function
+		// (a second def is legal Python and the later one wins). The official
+		// test module defines check(candidate).
+		program := "import signal\nsignal.alarm(60)\n" + t.Prompt + "\n" + completion + "\n\n" + t.Test + "\n\ncheck(" + t.EntryPoint + ")\n"
+
+		t1 := time.Now()
 		id, err := c.Create("")
 		if err != nil {
-			log.Printf("%s create: %v", t.id, err)
+			log.Printf("%s create: %v", t.TaskID, err)
 			continue
 		}
-		t1 := time.Now()
-		res, execErr := c.Exec(id, "python", fullCode)
 		t2 := time.Now()
-		_ = c.Destroy(id)
+		res, execErr := c.Exec(id, "python", program)
 		t3 := time.Now()
+		_ = c.Destroy(id)
+		t4 := time.Now()
 
-		passed := "false"
-		if execErr == nil && res.ExitCode != nil && *res.ExitCode == 0 {
-			passed = "true"
+		code := -1
+		if execErr == nil && res.ExitCode != nil {
+			code = *res.ExitCode
 		}
+		passed := execErr == nil && code == 0
+
+		rec := agentTraceRecord{
+			TaskID: t.TaskID, Model: model, Timestamp: ts,
+			PromptSHA256: hex.EncodeToString(sum[:]),
+			StopReason:   string(resp.StopReason),
+			InputTokens:  resp.Usage.InputTokens, OutputTokens: resp.Usage.OutputTokens,
+			Completion: reply.String(), Program: program,
+			Stdout: res.Stdout, Stderr: res.Stderr, ExitCode: code, Passed: passed,
+		}
+		_ = jw.Encode(rec)
+
 		_ = w.Write([]string{
-			t.id,
+			t.TaskID, model, ts,
 			fmt.Sprintf("%.3f", ms(llmDur)),
-			fmt.Sprintf("%.3f", ms(t1.Sub(t0))),
+			strconv.FormatInt(resp.Usage.InputTokens, 10),
+			strconv.FormatInt(resp.Usage.OutputTokens, 10),
+			string(resp.StopReason),
 			fmt.Sprintf("%.3f", ms(t2.Sub(t1))),
 			fmt.Sprintf("%.3f", ms(t3.Sub(t2))),
-			fmt.Sprintf("%.3f", ms(llmDur+t3.Sub(t0))),
-			passed,
+			fmt.Sprintf("%.3f", ms(t4.Sub(t3))),
+			fmt.Sprintf("%.3f", ms(llmDur+t4.Sub(t1))),
+			strconv.Itoa(code),
+			strconv.FormatBool(passed),
 		})
 		w.Flush()
 	}
-	// avoid unused-import lint when struct fields evolve
-	_ = strings.TrimSpace
-	_ = strconv.Itoa
 }

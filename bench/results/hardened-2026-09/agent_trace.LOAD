@@ -1,0 +1,5 @@
+rep1 load(before run, approx): 7-19 (recorded after the fact from uptime; see notes)
+rep2 start: 14.90 14.80 17.07
+rep2 end:   13.58 14.14 16.61
+rep3 start: 13.58 14.14 16.61
+rep3 end:   13.59 14.35 16.50

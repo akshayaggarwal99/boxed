@@ -1,123 +1,123 @@
 #!/usr/bin/env python3
-"""Generate publication-quality PDF plots from bench CSVs.
+"""Generate the paper's figures from a benchmark campaign.
 
-Usage: plots.py <results_dir> <out_figures_dir>
+Usage: plots.py <results/RUN> <out_figures_dir>
 """
 from __future__ import annotations
 
-import os
+import glob
 import sys
 from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
+import matplotlib.ticker
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 plt.rcParams.update({
-    "font.family": "serif",
-    "font.size": 9,
-    "axes.labelsize": 9,
-    "legend.fontsize": 8,
-    "figure.dpi": 200,
-    "savefig.bbox": "tight",
+    "font.family": "serif", "font.size": 8, "axes.labelsize": 8,
+    "legend.fontsize": 7, "figure.dpi": 200, "savefig.bbox": "tight",
     "savefig.pad_inches": 0.02,
 })
+C_BOXED, C_HARD, C_DEF = "#1f5fbf", "#e07b39", "#7a7a7a"
 
 
-def cdf(ax, series, label):
-    s = np.sort(series)
-    y = np.arange(1, len(s) + 1) / len(s)
-    ax.plot(s, y, label=label)
+def cdf(ax, series, label, **kw):
+    s = np.sort(np.asarray(series, dtype=float))
+    ax.plot(s, np.arange(1, len(s) + 1) / len(s), label=label, **kw)
 
 
-def plot_coldstart(results: Path, out: Path):
-    df = pd.read_csv(results / "coldstart.csv")
-    fig, ax = plt.subplots(figsize=(3.4, 2.2))
-    cdf(ax, df["create_ms"], "create")
-    cdf(ax, df["first_exec_ms"], "first exec")
-    cdf(ax, df["total_ms"], "create+exec+destroy")
-    ax.set_xscale("log")
-    ax.set_xlabel("latency (ms, log)")
-    ax.set_ylabel("CDF")
-    ax.legend(loc="lower right", frameon=False)
-    ax.grid(True, alpha=0.3)
-    fig.savefig(out / "coldstart_cdf.pdf")
-    plt.close(fig)
+def load_all(run: Path, name: str) -> pd.DataFrame:
+    return pd.concat([pd.read_csv(p) for p in sorted(glob.glob(str(run / f"r*/{name}")))], ignore_index=True)
 
 
-def plot_throughput(results: Path, out: Path):
-    df = pd.read_csv(results / "throughput.csv")
-    df = df.sort_values("conc")
-    fig, ax = plt.subplots(figsize=(3.4, 2.2))
-    ax.plot(df["conc"], df["rps"], marker="o")
-    ax.set_xscale("log", base=2)
-    ax.set_xlabel("concurrency")
-    ax.set_ylabel("sandboxes / sec")
-    ax.grid(True, alpha=0.3)
-    fig.savefig(out / "throughput_curve.pdf")
-    plt.close(fig)
+def plot_lifecycle(run: Path, out: Path):
+    boxed, hard, dflt = load_all(run, "coldstart.csv"), load_all(run, "baseline_hardened.csv"), load_all(run, "baseline_default.csv")
+    fig, (a, b) = plt.subplots(1, 2, figsize=(7.0, 2.2))
+    cdf(a, dflt["total_ms"], "raw Docker, stock defaults", color=C_DEF, ls=":")
+    cdf(a, hard["total_ms"], "raw Docker, hardened config", color=C_HARD, ls="--")
+    cdf(a, boxed["total_ms"], "Boxed (plane + agent)", color=C_BOXED)
+    a.set_xscale("log"); a.set_xlabel("create+exec+destroy (ms, log)"); a.set_ylabel("CDF")
+    a.set_xticks([100, 200, 500, 1000, 2000]); a.set_xticklabels(["100", "200", "500", "1000", "2000"])
+    a.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+    a.legend(loc="lower right", frameon=False); a.grid(True, alpha=0.3)
+    a.set_title("(a) end-to-end lifecycle", fontsize=8)
+    phases = [("create_ms", "create"), ("first_exec_ms", "first exec"), ("destroy_ms", "destroy")]
+    x = np.arange(len(phases)); wd = 0.26
+    for i, (df, lab, col) in enumerate([(dflt, "stock", C_DEF), (hard, "hardened", C_HARD), (boxed, "Boxed", C_BOXED)]):
+        med = [np.median(df[p]) for p, _ in phases]
+        q1 = [np.percentile(df[p], 25) for p, _ in phases]; q3 = [np.percentile(df[p], 75) for p, _ in phases]
+        b.bar(x + (i - 1) * wd, med, wd, label=lab, color=col,
+              yerr=[np.subtract(med, q1), np.subtract(q3, med)], capsize=2, error_kw={"lw": 0.7})
+    b.set_xticks(x); b.set_xticklabels([l for _, l in phases]); b.set_ylabel("median (ms), IQR bars")
+    b.legend(frameon=False); b.grid(True, axis="y", alpha=0.3); b.set_title("(b) per-phase", fontsize=8)
+    fig.savefig(out / "lifecycle.pdf"); plt.close(fig)
 
 
-def plot_overhead(results: Path, out: Path):
-    df = pd.read_csv(results / "overhead.csv")
-    fig, axes = plt.subplots(1, 2, figsize=(3.4, 2.0))
-    axes[0].violinplot(df["rss_mib"], showmedians=True)
-    axes[0].set_ylabel("RSS (MiB)")
-    axes[0].set_xticks([])
-    axes[1].violinplot(df["cpu_pct"], showmedians=True)
-    axes[1].set_ylabel("CPU (%)")
-    axes[1].set_xticks([])
-    for a in axes:
-        a.grid(True, alpha=0.3)
-    fig.savefig(out / "overhead_violin.pdf")
-    plt.close(fig)
+def plot_throughput(run: Path, out: Path):
+    tps = sorted(glob.glob(str(run / "tp*/throughput.csv")))
+    if not tps:
+        return
+    tp = pd.concat([pd.read_csv(p).assign(run=i) for i, p in enumerate(tps)], ignore_index=True)
+    g = tp.groupby("conc")["rps"]
+    fig, ax = plt.subplots(figsize=(3.4, 1.8))
+    for _, r in tp.groupby("run"):
+        r = r.sort_values("conc"); ax.plot(r["conc"], r["rps"], color=C_BOXED, alpha=0.15, lw=0.8)
+    ax.errorbar(g.mean().index, g.mean(), yerr=g.std(ddof=1), marker="o", color=C_BOXED, capsize=3, lw=1.2, label=f"mean $\\pm$ sd, {len(tps)} sweeps")
+    ax.set_xscale("log", base=2); ax.set_xlabel("client concurrency"); ax.set_ylabel("sandboxes / s")
+    ax.legend(frameon=False, loc="lower center"); ax.grid(True, alpha=0.3)
+    fig.savefig(out / "throughput_curve.pdf"); plt.close(fig)
 
 
-def plot_agent(results: Path, out: Path):
-    p = results / "agent_trace.csv"
+def plot_overhead(run: Path, out: Path):
+    p = run / "overhead.csv"
     if not p.exists():
         return
-    df = pd.read_csv(p, dtype={"passed": str})
-    df = df[df["passed"].isin(["true", "True", "false", "False"])].copy()
+    df = pd.read_csv(p)
+    fig, axes = plt.subplots(1, 2, figsize=(3.4, 1.9))
+    for ax, col, lab in ((axes[0], "rss_mib", "working set (MiB)"), (axes[1], "cpu_pct", "CPU (%)")):
+        jitter = (np.random.default_rng(1).random(len(df)) - 0.5) * 0.3
+        ax.scatter(jitter, df[col], s=8, color=C_BOXED, alpha=0.7)
+        ax.hlines(np.median(df[col]), -0.3, 0.3, color=C_HARD, lw=1.2, label="median")
+        ax.set_xlim(-0.6, 0.6); ax.set_xticks([]); ax.set_ylabel(lab); ax.grid(True, axis="y", alpha=0.3)
+        ax.set_title(f"n={len(df)}", fontsize=7)
+    axes[0].legend(frameon=False, fontsize=6)
+    fig.savefig(out / "overhead_strip.pdf"); plt.close(fig)
+
+
+def plot_agent(run: Path, out: Path):
+    p = run / "agent_trace.csv"
+    if not p.exists():
+        return
+    reps = [p] + sorted(glob.glob(str(run / "agent_rep*/agent_trace.csv")))
+    df = pd.concat([pd.read_csv(x, dtype={"passed": str}) for x in reps], ignore_index=True)
+    df = df[df["passed"].isin(["true", "false"])].copy()
     if df.empty:
         return
     llm = df["llm_ms"].astype(float)
-    sandbox = (df["create_ms"].astype(float)
-               + df["exec_ms"].astype(float)
-               + df["destroy_ms"].astype(float))
-    total = llm + sandbox
-    order = total.sort_values().index
-    llm = llm.loc[order].reset_index(drop=True)
-    sandbox = sandbox.loc[order].reset_index(drop=True)
+    sb = df["create_ms"].astype(float) + df["exec_ms"].astype(float) + df["destroy_ms"].astype(float)
+    order = (llm + sb).sort_values().index
+    llm, sb, ok = llm.loc[order].values / 1000, sb.loc[order].values / 1000, (df["passed"].loc[order] == "true").values
     x = np.arange(len(llm))
-    fig, ax = plt.subplots(figsize=(3.4, 2.2))
-    ax.bar(x, llm / 1000.0, label="LLM", color="#4a90e2")
-    ax.bar(x, sandbox / 1000.0, bottom=llm / 1000.0,
-           label="sandbox", color="#e2844a")
-    ax.set_xlabel("task (sorted by total)")
-    ax.set_ylabel("latency (s)")
-    ax.legend(frameon=False, loc="upper left")
-    ax.grid(True, axis="y", alpha=0.3)
-    fig.savefig(out / "agent_breakdown.pdf")
-    plt.close(fig)
+    fig, ax = plt.subplots(figsize=(3.4, 1.9))
+    ax.bar(x, llm, label="model inference", color=C_DEF)
+    ax.bar(x, sb, bottom=llm, label="sandbox create+exec+destroy", color=C_BOXED)
+    for xi, passed in zip(x, ok):
+        if not passed:
+            ax.text(xi, (llm + sb)[xi], "x", ha="center", va="bottom", fontsize=7, color="red")
+    ax.set_xlabel("HumanEval task execution (sorted by total)"); ax.set_ylabel("wall-clock (s)")
+    ax.legend(frameon=False, loc="upper left"); ax.grid(True, axis="y", alpha=0.3)
+    fig.savefig(out / "agent_breakdown.pdf"); plt.close(fig)
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("usage: plots.py <results_dir> <out_figures_dir>", file=sys.stderr)
-        sys.exit(2)
-    results = Path(sys.argv[1])
-    out = Path(sys.argv[2])
+    run, out = Path(sys.argv[1]), Path(sys.argv[2])
     out.mkdir(parents=True, exist_ok=True)
-    if (results / "coldstart.csv").exists():
-        plot_coldstart(results, out)
-    if (results / "throughput.csv").exists():
-        plot_throughput(results, out)
-    if (results / "overhead.csv").exists():
-        plot_overhead(results, out)
-    plot_agent(results, out)
+    if glob.glob(str(run / "r*/coldstart.csv")):
+        plot_lifecycle(run, out)
+    plot_throughput(run, out); plot_overhead(run, out); plot_agent(run, out)
     print(f"plots written to {out}", file=sys.stderr)
 
 

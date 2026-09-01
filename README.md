@@ -4,7 +4,7 @@
 
 # Boxed
 
-**The Sovereign Code Execution Engine for AI Agents. Run untrusted code safely—locally or in the cloud—using Docker, Firecracker, or Wasm.**
+**A self-hosted code execution substrate for AI agents. Ephemeral Docker sandboxes with a streaming in-sandbox agent, behind a driver interface designed to admit other isolation backends.**
 
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev)
 [![Rust](https://img.shields.io/badge/Rust-1.75+-DEA584?logo=rust)](https://www.rust-lang.org)
@@ -28,14 +28,14 @@ Building an AI Agent that writes code? You have a problem.
 
 ## ✨ Features
 
-- **🔒 Pluggable isolation** — Docker driver ships today; Firecracker and Wasm drivers stubbed behind a single `Driver` interface.
+- **🔒 Backend behind an interface** — one `Driver` interface; the Docker driver is the only implementation. No Firecracker or Wasm backend exists yet.
 - **🛡️ Bring-Your-Own-Key auth** — operator-chosen API key via `X-Boxed-API-Key`. No vendor accounts.
-- **⚡ Sub-second cold start** — 303 ms median create+exec+destroy on a developer laptop (see paper).
+- **⚡ Fast lifecycle** — create+exec+destroy measured against raw Docker on the same host; numbers and CIs in the [paper](paper-v2/Boxed-IEEE.pdf) and `bench/results/`.
 - **📁 First-class artifacts** — in-VM Rust agent streams stdout, stderr, and emitted files (images, PDFs, datasets) over JSON-RPC.
 - **🔌 Polyglot SDKs** — first-class support for TypeScript and Python.
-- **🌐 Network policy** — coarse `EnableNetworking` toggle today (Docker `none` vs bridge); fine-grained egress allow-lists are on the roadmap.
+- **🌐 Network fail-closed** — every sandbox runs with Docker's `none` network; requests that enable networking are rejected until a per-sandbox egress policy exists.
 
-> **Honest scoping:** the current Docker driver enforces a `Memory` cgroup (default 512 MiB) and runs `/tmp` and `/output` as `tmpfs`, but leaves the container rootfs writable, retains the default Linux capability set (no `CapDrop: ALL`), does not set `PidsLimit`, and permits in-PID-namespace `ptrace`. We report the full escape probe in the [paper](paper-v2/Boxed-IEEE.pdf) and close those gaps in the planned Firecracker driver.
+> **Scoping:** the Docker driver sets a read-only root filesystem, `CapDrop: ALL`, `no-new-privileges`, `PidsLimit` 256, a memory cgroup (default 512 MiB), a CPU quota, `tmpfs` for `/tmp`, `/output`, and the workdir, and network `none`. It uses Docker's default seccomp profile; a custom profile and a per-sandbox egress policy are not implemented. A twelve-vector escape probe with post-condition checks (`bench/security/escapes.sh`) and its results are in the [paper](paper-v2/Boxed-IEEE.pdf) and `bench/results/`. Docker shares the host kernel: this is configuration hardening, not a virtualization boundary.
 
 ---
 
@@ -206,7 +206,8 @@ Boxed uses a **Control Plane vs Data Plane** architecture.
 - [x] **Polyglot SDKs** (TypeScript, Python)
 - [x] **Sticky sessions** (REPL mode, WebSocket proxy)
 - [x] **API-key auth** (Bring-Your-Own-Key)
-- [ ] **Hardening** — `ReadonlyRootfs`, `CapDrop: ALL`, `PidsLimit`, tighter seccomp profile, fine-grained egress allow-lists via `iptables`
+- [x] **Hardening** — `ReadonlyRootfs`, `CapDrop: ALL`, `no-new-privileges`, `PidsLimit`, network `none`
+- [ ] **Custom seccomp profile** and fine-grained egress allow-lists
 - [ ] **Firecracker driver** — MicroVMs for stronger isolation
 - [ ] **Wasm driver** — sub-millisecond cold start for compatible workloads
 - [ ] **Pool-based reuse** — warm sandboxes for sub-millisecond `exec` (see paper §6)
