@@ -26,13 +26,46 @@ cg() { printf "$CGPAT" "$1"; }
 
 echo "test,threat,attempt_exit,signature,postcondition,evidence"
 
+BACKEND="${BACKEND:-boxed}"
 api() { curl -s -H "X-Boxed-API-Key: $KEY" -H 'Content-Type: application/json' "$@"; }
-mk()  { api -d '{"timeout":120}' "$ENDPOINT/v1/sandbox" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("sandbox_id",""))'; }
-rm_() { api -X DELETE "$ENDPOINT/v1/sandbox/$1" >/dev/null; }
-run() { # id lang code -> JSON exec response
-  local body; body=$(python3 -c 'import json,sys;print(json.dumps({"language":sys.argv[1],"code":sys.argv[2]}))' "$2" "$3")
-  api -d "$body" "$ENDPOINT/v1/sandbox/$1/exec"
-}
+if [[ "$BACKEND" == "openhands" ]]; then
+  # OpenHands agent-server, started the way the OpenHands SDK starts it.
+  OH_IMAGE="${OPENHANDS_IMAGE:-ghcr.io/openhands/agent-server:latest-python}"
+  OH_PORT="${OPENHANDS_PORT:-8010}"
+  mk() {
+    local id; id=$(docker run -d --ulimit nofile=65536:65536 -p $OH_PORT:8000 "$OH_IMAGE" --host 0.0.0.0 --port 8000 2>/dev/null)
+    local t0=$SECONDS
+    until curl -s --max-time 1 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$OH_PORT/health" 2>/dev/null | grep -q '^2'; do sleep 0.2; [[ $((SECONDS-t0)) -gt 180 ]] && break; done
+    echo "$id"
+  }
+  rm_() { docker rm -f "$1" >/dev/null 2>&1; }
+  run() { # id lang code -> normalized {"stdout","stderr","exit_code"}
+    local cmd
+    # the agent-server runs commands through /bin/sh; the bash vectors use
+    # [[ ]] and $(...) freely, so hand them to bash explicitly.
+    if [[ "$2" == "python" ]]; then cmd=$(python3 -c 'import sys,shlex;print("python3 -c "+shlex.quote(sys.argv[1]))' "$3"); else cmd=$(python3 -c 'import sys,shlex;print("bash -c "+shlex.quote(sys.argv[1]))' "$3"); fi
+    python3 - "$cmd" "$OH_PORT" <<'PY'
+import sys,json,urllib.request
+cmd,port=sys.argv[1],sys.argv[2]
+req=urllib.request.Request(f"http://127.0.0.1:{port}/api/bash/execute_bash_command",data=json.dumps({"command":cmd,"timeout":120}).encode(),headers={"Content-Type":"application/json"})
+try:
+    d=json.load(urllib.request.urlopen(req,timeout=150))
+    items=(d.get("items") if isinstance(d,dict) and "items" in d else ([d] if isinstance(d,dict) else d))
+    out={"stdout":"".join(x.get("stdout") or "" for x in items),"stderr":"".join(x.get("stderr") or "" for x in items),
+         "exit_code":next((x["exit_code"] for x in reversed(items) if x.get("exit_code") is not None),None)}
+except Exception as e:
+    out={"stdout":"","stderr":str(e),"exit_code":None}
+print(json.dumps(out))
+PY
+  }
+else
+  mk()  { api -d '{"timeout":120}' "$ENDPOINT/v1/sandbox" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("sandbox_id",""))'; }
+  rm_() { api -X DELETE "$ENDPOINT/v1/sandbox/$1" >/dev/null; }
+  run() { # id lang code -> JSON exec response
+    local body; body=$(python3 -c 'import json,sys;print(json.dumps({"language":sys.argv[1],"code":sys.argv[2]}))' "$2" "$3")
+    api -d "$body" "$ENDPOINT/v1/sandbox/$1/exec"
+  }
+fi
 field() { python3 -c 'import sys,json;d=json.load(sys.stdin);v=d.get(sys.argv[1]);print("" if v is None else v)' "$1"; }
 hostcat() { $HOST_SSH sudo cat "$1" 2>/dev/null | tr -d '\r'; }
 hostsh()  { $HOST_SSH sudo sh -c "$1" 2>/dev/null | tr -d '\r'; }
@@ -253,7 +286,12 @@ libc=ctypes.CDLL(None,use_errno=True)
 target=None
 for d in glob.glob("/proc/[0-9]*"):
     try:
-        if open(d+"/comm").read().strip()=="boxed-agent": target=int(d.split("/")[-1]); break
+        pid=int(d.split("/")[-1])
+        if pid==os.getpid() or pid==1: continue   # pid 1 is init/tini, not the agent
+        comm=open(d+"/comm").read().strip(); cmdl=open(d+"/cmdline","rb").read().replace(b"\0",b" ")
+        # Boxed: the in-sandbox agent. OpenHands: the agent-server process the
+        # workload shares the sandbox with (the same peer-process exposure).
+        if comm=="boxed-agent" or b"openhands-agent-server" in cmdl or b"agent_server" in cmdl: target=pid; break
     except Exception: pass
 try: scope=open("/proc/sys/kernel/yama/ptrace_scope").read().strip()
 except Exception: scope="absent"
