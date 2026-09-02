@@ -193,13 +193,19 @@ except MemoryError:
     print("POST:DENIED|MemoryError after %d MiB"%(64*len(chunks)))')
   ec=$(printf '%s' "$out" | field exit_code); so=$(printf '%s' "$out" | field stdout)
   mmax=$(hostcat "$(cg $id)/memory.max"); mev=$(hostcat "$(cg $id)/memory.events" | grep -E 'oom_kill' | tr '\n' ' ')
+  # in-sandbox view of the same cgroup (the only view that exists under a
+  # microVM runtime, where the guest kernel does the killing)
+  inb=$(run "$id" bash 'echo "max=$(cat /sys/fs/cgroup/memory.max 2>/dev/null) $(grep oom_kill /sys/fs/cgroup/memory.events 2>/dev/null)"' | field stdout | tr -d '\n')
   sig=$(printf '%s' "$so" | grep -qiE 'MemoryError|killed|cannot allocate' && echo DENIED || echo UNDENIED)
   post=$(printf '%s' "$so" | sed -n 's/^POST:\([A-Z]*\)|.*/\1/p' | tail -1)
   if [[ -z "$post" ]]; then
-    # process was SIGKILLed before it could print: the cgroup bound.
-    if [[ "$mev" == *"oom_kill 0"* || -z "$mev" ]]; then post=UNDENIED; else post=DENIED; fi
+    # The process printed nothing, so it did not finish its allocation. It was
+    # killed (exit -1 = died by signal, 137 = SIGKILL) or the limit fired
+    # somewhere we can read. Only a normal exit after a full allocation is a
+    # failure of the boundary, and that case prints POST:UNDENIED itself.
+    if [[ "$ec" == "-1" || "$ec" == "137" || "$mev" == *"oom_kill "[1-9]* || "$inb" == *"oom_kill "[1-9]* ]]; then post=DENIED; else post=ERROR; fi
   fi
-  ev="exit=$ec host:memory.max=$mmax $mev"
+  ev="exit=$ec host:memory.max=$mmax $mev sandbox:$inb"
   emit mem_bomb T4 "$ec" "$sig" "$post" "$ev"; rm_ "$id"
 }
 
