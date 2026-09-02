@@ -68,6 +68,13 @@ def latency_block(prefix, paths, m):
     m[f"{prefix}DestroyMedian"] = fmt_ms(np.median(df["destroy_ms"]))
     if "exit_code" in df:
         m[f"{prefix}NonZeroExit"] = str(int((df["exit_code"] != 0).sum()))
+    # Tail clustering: how many of the samples above p95 fall in a single run.
+    p95 = np.percentile(tot, 95)
+    slow = df[tot > p95]
+    per_run = [int((f["total_ms"] > p95).sum()) for f in frames]
+    m[f"{prefix}TailN"] = str(len(slow))
+    m[f"{prefix}TailClusterMax"] = str(max(per_run))
+    m[f"{prefix}TailCreateShare"] = f"{100*(slow['create_ms'] > slow['first_exec_ms']).mean():.0f}\\%"
     return df
 
 

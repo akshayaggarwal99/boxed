@@ -198,9 +198,9 @@ where they disagree.
 
 \subsection{Container-based isolation}
 Linux containers, built on namespaces, cgroups, and seccomp, underpin nearly
-every development sandbox. They start in roughly 50--200\,ms when images are
-warm, which is why they dominate workloads that create and destroy
-environments often. The cost is that containers share the host kernel, a
+every development sandbox. They start fast when images are warm (\BaseDefCreateMedian{} for a
+stock \texttt{docker run} on our host, Table~\ref{tab:lifecycle}), which is
+why they dominate workloads that create and destroy environments often. The cost is that containers share the host kernel, a
 much larger attack surface than a hardware boundary.
 CVE-2019-5736~\cite{runc-cve} is the standard reminder that one bug in
 \texttt{runc} turns a container into the host. Lin \emph{et
@@ -210,8 +210,10 @@ stopped more privilege escalations than namespaces and cgroups did, and 11
 exploits still broke isolation. That ordering is why the hardening in
 Section~\ref{sec:hardening} starts with the capability drop. Hardened
 runtimes such as gVisor~\cite{gvisor} put a userspace kernel between the
-workload and the host. Young \emph{et al.}~\cite{gvisor-cost} measure its
-syscall-interception cost at 2--5$\times$. Anjali \emph{et
+workload and the host. Young \emph{et al.}~\cite{gvisor-cost} measure its system-call cost at
+2.8$\times$ native in its fastest mode (KVM, handled inside the Sentry),
+9$\times$ when the call reaches the host, and 72$\times$ through the Gofer,
+with file opens 216$\times$ slower. Anjali \emph{et
 al.}~\cite{anjali-blending} compare Linux containers, gVisor, and Firecracker
 on CPU, network, memory, and file system microbenchmarks and trace the kernel
 code each executes; both gVisor and Firecracker run substantially more kernel
@@ -308,9 +310,11 @@ trust boundary.
  \node[font=\scriptsize\sffamily,anchor=north west] at (host.north west)
  [xshift=3pt,yshift=-3pt] {Host (trusted)};
 
- \node[trusted,minimum width=32mm] (cp) at (-1.75,1.0)
- {Control plane + driver\\{\scriptsize trusted, self-hosted}};
- \node[trusted,minimum width=26mm] (kern) at (1.75,1.0)
+ \node[trusted,minimum width=26mm] (cp) at (-2.6,1.0)
+ {Control plane\\{\scriptsize + driver, trusted}};
+ \node[trusted,minimum width=22mm] (hfs) at (0,1.0)
+ {Host filesystem\\{\scriptsize trusted}};
+ \node[trusted,minimum width=22mm] (kern) at (2.6,1.0)
  {Host kernel\\{\scriptsize trusted}};
 
  \node[hostile,minimum width=30mm,minimum height=13mm] (sbx) at (-1.75,-1.0)
@@ -318,7 +322,7 @@ trust boundary.
  \node[hostbox,minimum width=30mm,minimum height=13mm] (sbxb) at (1.75,-1.0)
  {Sandbox B\\{\scriptsize co-tenant}};
 
- \draw[thr] (sbx.north) -- node[left,font=\scriptsize,inner sep=1.5pt]{T1} (cp.south);
+ \draw[thr] (sbx.north) -- node[left,font=\scriptsize,inner sep=1.5pt]{T1} (hfs.south west);
  \draw[thr] (sbx.east) -- node[above,font=\scriptsize,inner sep=1.5pt]{T3} (sbxb.west);
  \draw[thr] ($(sbx.north east)+(0,-1mm)$)
  -- node[below right,font=\scriptsize,inner sep=1.5pt,pos=0.42]{T2, T4}
@@ -607,7 +611,14 @@ Boxed's median end-to-end lifecycle is \BoxedColdMedian{} (bootstrap
 \BoxedColdRunMedianMax). The interquartile range is \BoxedColdIQR{}, and the
 tail reaches \BoxedColdPNinetyFive{} at p95 and \BoxedColdPNinetyNine{} at
 p99. Raw Docker with the same hardened configuration takes
-\BaseHardMedian{}. The difference of \BoxedOverheadMedian{} (95\%~CI on the
+\BaseHardMedian{}. Its tail is heavier than Boxed's (p95
+\BaseHardPNinetyFive{}), but the tails are not a property of the
+configurations: of the \BaseHardTailN{} slowest raw-hardened lifecycles,
+\BaseHardTailClusterMax{} fall in a single run, and of the
+\BaseDefTailN{} slowest stock lifecycles, \BaseDefTailClusterMax{} fall in
+another, almost all of them in the create phase. Those are bursts of host
+activity landing on whichever configuration was running, so Boxed's smaller
+p95 is not an advantage of Boxed. The difference of \BoxedOverheadMedian{} (95\%~CI on the
 difference of medians \BoxedOverheadCI; \BoxedOverheadPct{} of the raw cost)
 is what the HTTP control plane, the agent launch over \texttt{exec} attach,
 and the JSON-RPC exec path add together: \BoxedOverheadCreate{} on create,
@@ -692,7 +703,11 @@ The post-condition checks classify \BoxedEscapeDenied{} of
 \BoxedEscapeTotal{} vectors as denied (\BoxedEscapePct), with
 \BoxedEscapeUndenied{} undenied and \BoxedEscapeError{} harness errors, and
 the verdicts were \BoxedEscapeConsistent{} across the \BoxedEscapeRuns{}
-runs.
+runs. For scale, the same twelve vectors on the pre-hardening driver in
+May~2026, signature-scored, came out \LegacyEscapeDenied{} of
+\BoxedEscapeTotal{} denied; the earlier version of this work attributed four
+of those seven failures to configuration (writable root, default
+capabilities, no PID limit, \texttt{ptrace}) and three to the classifier.
 
 The evidence column settles the cases the signature method could not. The
 cgroup kills the memory bomb, and the host's \texttt{oom\_kill} counter
@@ -797,8 +812,12 @@ unhardened driver, and the two VM stacks cannot be compared. The comparison
 the paper rests on, Boxed against raw Docker, holds the host, VM, image, and
 command fixed, and the interleaved runs give a dispersion estimate; that
 comparison survives a change of platform in a way the absolute numbers do
-not. The host was not quiesced. The escape probe is twelve vectors on one
-image, and it tests configuration; it does not test kernel vulnerabilities.
+not. The host was not quiesced, and within each repeat the three configurations
+ran in a fixed order (Boxed, hardened, stock) rather than a random one. No
+other agent sandbox was run on this host; Daytona and OpenHands are
+self-hostable and could be measured with the same harness. The escape probe
+is twelve vectors on one image, and it tests configuration; it does not test
+kernel vulnerabilities.
 Throughput lifecycles are create$\rightarrow$destroy without an exec, so they
 measure the daemon's container churn rate and not the latency an agent
 sees. The figures for other systems in Table~\ref{tab:compare} are vendor
