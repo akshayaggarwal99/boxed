@@ -1,0 +1,25 @@
+\begin{table*}[t]
+\centering
+\caption{Escape probe on the hardened Docker driver, 12 vectors, 3 independent runs (verdicts identical across runs). \emph{Signature} is the v1 classifier (grep for a denial string in captured output); \emph{Post-condition} checks state after the attempt, on the host where possible. The paper reports the post-condition column.}
+\label{tab:escape-linux}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lllllp{0.42\textwidth}@{}}
+\toprule
+Vector & Threat & Exit & Signature & Post-condition & Evidence \\
+\midrule
+\texttt{mount\_host} & T1, T2 & 0 & denied & \textbf{denied} & \texttt{mounts\_on\_/\allowbreak mnt=0} \\
+\texttt{proc1\_root} & T1 & 0 & denied & \textbf{denied} & \texttt{proc1\_root\_dev\_ino=45:1048678 root\_dev\_ino=45:1048678 pid1=tail} \\
+\texttt{docker\_sock} & T2, T3 & 0 & undenied & \textbf{denied} & \texttt{sockets\_found=0 api\_reachable=False} \\
+\texttt{modprobe} & T2 & 0 & denied & \textbf{denied} & \texttt{init\_module errno=1(Operation not permitted)} \\
+\texttt{raw\_socket} & T2 & 0 & denied & \textbf{denied} & \texttt{errno=1(Operation not permitted)} \\
+\texttt{setns} & T2 & 0 & denied & \textbf{denied} & \texttt{unshare rc=1 unshare: unshare failed: Operation not permitted} \\
+\texttt{rfc1918} & T3 & 0 & denied & \textbf{denied} & \texttt{ifaces=lo} \\
+\texttt{imds} & T3 & 0 & denied & \textbf{denied} & \texttt{ifaces=lo} \\
+\texttt{fork\_bomb} & T4 & 0 & denied & \textbf{denied} & \texttt{forked=250 EAGAIN after 250 forks host:pids.max=256 pids.events=max 1 } \\
+\texttt{mem\_bomb} & T4 & $-$1 & undenied & \textbf{denied} & \texttt{exit=-1 host:memory.max=536870912 oom\_kill 1  sandbox:max=536870912 oom\_kill 1} \\
+\texttt{ro\_root} & T1 & 0 & denied & \textbf{denied} & \texttt{/\allowbreak etc:absent /\allowbreak usr/\allowbreak bin:absent } \\
+\texttt{ptrace\_agent} & T2, T3 & 0 & denied & \textbf{denied} & \texttt{PTRACE\_ATTACH pid=7 errno=1(Operation not permitted) yama=1} \\
+\bottomrule
+\end{tabular}
+\end{table*}

@@ -25,6 +25,9 @@
 \input{tables/numbers}
 % Same macros with a Linux prefix, from the native-host campaign.
 \input{tables/numbers-linux}
+% Runtime-swap (runc / gVisor / Kata) and core-scaling campaigns.
+\IfFileExists{tables/numbers-runtimes.tex}{\input{tables/numbers-runtimes}}{}
+\IfFileExists{tables/numbers-scaling.tex}{\input{tables/numbers-scaling}}{}
 % Implementation constants (binary sizes, LOC, protocol caps) with provenance.
 \input{tables/constants}
 
@@ -607,7 +610,7 @@ interleaved so that drift on the host hits all three alike.
  \label{fig:lifecycle-fig}
 \end{figure*}
 
-Table~\ref{tab:lifecycle} and Fig.~\ref{fig:lifecycle-fig} give the result.
+Table~\ref{tab:lifecycle} (upper half) and Fig.~\ref{fig:lifecycle-fig} give the result.
 Boxed's median end-to-end lifecycle is \BoxedColdMedian{} (bootstrap
 95\%~CI \BoxedColdMedianCI; per-run medians \BoxedColdRunMedianMin{} to
 \BoxedColdRunMedianMax). The interquartile range is \BoxedColdIQR{}, and the
@@ -642,8 +645,7 @@ roll-your-own deployments skip does not cost latency.
 \subsection{Throughput under concurrency}
 Client concurrency was swept over $c \in \{1,2,4,8,16,32\}$ with
 \BoxedTPPerLevel{} create$\rightarrow$destroy lifecycles per level, and the
-whole sweep was repeated \BoxedTPRuns{} times (Table~\ref{tab:throughput},
-Fig.~\ref{fig:throughput}). Throughput rises from \BoxedTPatOne{}~sandboxes/s
+whole sweep was repeated \BoxedTPRuns{} times (Table~\ref{tab:throughput}). Throughput rises from \BoxedTPatOne{}~sandboxes/s
 at $c{=}1$ to a plateau of \BoxedPeakRPS{} (\BoxedPeakCI) at
 $c{=}\BoxedPeakConc$ and \BoxedTPatThirtyTwo{} at $c{=}32$; the last three
 levels sit inside one another's confidence intervals. The VM has four vCPUs,
@@ -654,15 +656,6 @@ version of this work read a shape into one sweep per level (a dip at
 $c{=}16$, a collapse at $c{=}32$) that these repeats do not reproduce.
 
 \input{tables/throughput}
-
-\begin{figure}[t]
- \centering
- \includegraphics[width=\columnwidth]{figures/throughput_curve.pdf}
- \caption{Sustained sandbox-creation rate against client concurrency.
- Thin lines are the \BoxedTPRuns{} individual sweeps; markers are the mean
- with one standard deviation.}
- \label{fig:throughput}
-\end{figure}
 
 \subsection{Idle per-sandbox overhead}
 Each of \BoxedOverheadN{} idle sandboxes was sampled five seconds after
@@ -810,7 +803,7 @@ To separate the cost of the virtual machine from the cost of the substrate,
 the whole campaign was repeated on a Google Compute Engine
 \texttt{n2-standard-4} (4 vCPUs, 16\,GB, Ubuntu 24.04, Docker Engine 29.7,
 kernel 6.17, systemd cgroup driver) with nothing else running on the host.
-Table~\ref{tab:lifecycle-linux} gives the lifecycle result. Boxed's median
+Table~\ref{tab:lifecycle} (lower half) gives the lifecycle result. Boxed's median
 lifecycle is \LinuxBoxedColdMedian{} against \LinuxBaseHardMedian{} for raw
 hardened Docker, a substrate cost of \LinuxBoxedOverheadMedian{} (95\%~CI
 \LinuxBoxedOverheadCI; \LinuxBoxedOverheadPct{} of the raw cost), and the
@@ -821,13 +814,50 @@ $c{=}\LinuxBoxedPeakConc$ with \LinuxBoxedTPErrors{} errors. The escape
 probe denies \LinuxBoxedEscapeDenied{} of \LinuxBoxedEscapeTotal{} vectors,
 \LinuxBoxedEscapeConsistent{} across \LinuxBoxedEscapeRuns{} runs, with the
 signature method disagreeing on \LinuxBoxedEscapeSigDisagree{}. The agent
-trace passed \LinuxBoxedAgentPassCount{} of \LinuxBoxedAgentN{} executions;
-model inference took \LinuxBoxedAgentLLMShare{} of wall-clock, and sandbox
-create had a median of \LinuxBoxedAgentCreateMedian{} against
-\LinuxBoxedColdCreateMedian{} in the tight loop on the same host.
-%% LINUX-COMPARISON-SENTENCE
+trace passed \LinuxBoxedAgentPassCount{} of \LinuxBoxedAgentN{} executions
+with model inference at \LinuxBoxedAgentLLMShare{} of wall-clock
+(\LinuxBoxedAgentLLMShareRepRange{} across repetitions), and sandbox create
+in the agent loop had a median of \LinuxBoxedAgentCreateMedian{}
+(\LinuxBoxedAgentCreateRepRange) against \LinuxBoxedColdCreateMedian{} in
+the tight loop on the same host: on a quiet host the gap seen on the laptop
+is gone, which is what the load explanation predicted.
 
-\input{tables/lifecycle-linux}
+Two things carry over from the laptop and one does not. The substrate's
+share of the raw cost is \LinuxBoxedOverheadPct{} here and
+\BoxedOverheadPct{} on the laptop, and the hardened configuration is faster
+than stock on both. The escape verdicts are the same twelve, with the same
+two signature disagreements. What does not carry over is the absolute
+latency: this Xeon host is slower per lifecycle than the M1~Pro under
+colima, and its dispersion is far smaller (IQR \LinuxBoxedColdIQR{} against
+\BoxedColdIQR{}; per-run medians \LinuxBoxedColdRunMedianMin{} to
+\LinuxBoxedColdRunMedianMax), which is the difference between an idle
+server and a laptop in use.
+
+\subsection{Throughput against core count}\label{sec:scaling}
+The plateau in Table~\ref{tab:throughput} could be the four cores or the
+one Docker daemon. To tell them apart, the throughput sweep was repeated ten
+times on native \texttt{n2-standard-8} and \texttt{n2-standard-16} hosts
+with the same image and harness (Table~\ref{tab:scaling},
+Fig.~\ref{fig:scaling}). Peak throughput goes from \ScalePeakFour{}
+sandboxes/s on 4~vCPUs to \ScalePeakEight{} on 8 and \ScalePeakSixteen{} on 16:
+\ScaleCoreRatio{} the cores buys \ScaleRatioMax{} the throughput, and on
+16~vCPUs the peak arrives at $c{=}\ScalePeakConcSixteen$ and falls back to about
+the 4-vCPU level by $c{=}32$. The single-client rate barely moves
+(\ScaleAtOneFour{}, \ScaleAtOneEight{}, \ScaleAtOneSixteen{}). Container churn on one
+host is bounded by the daemon's serialization of create and destroy, and
+adding cores does not change that; a deployment that needs more sandboxes
+per second needs more daemons, which is the multi-host case in
+Section~\ref{sec:future}.
+
+\input{tables/scaling}
+
+\begin{figure}[t]
+ \centering
+ \includegraphics[width=.9\columnwidth]{figures/scaling.pdf}
+ \caption{Sandbox creation rate against client concurrency on 4, 8, and 16
+ vCPU hosts (native Linux, runc, 10 sweeps each, mean with 95\% CI).}
+ \label{fig:scaling}
+\end{figure}
 
 \subsection{Threats to validity}
 All measurements come from one laptop, and Docker ran inside a virtual
@@ -854,34 +884,14 @@ three times, on a loaded host.
 \section{Discussion}\label{sec:disc}
 
 \subsection{Hardening status}
-Table~\ref{tab:hardening} maps each gap the pre-hardening probe exposed to
-its status in the current source. The read-only root, capability drop, PID
-limit, privilege-escalation block, and network restriction are in place, and
-the post-condition probe confirms each of them. Two items remain: a custom
+Each gap the pre-hardening probe exposed has a status in the current
+source. The read-only root, capability drop, PID limit,
+privilege-escalation block, and network restriction are in place, and the
+post-condition probe confirms each of them (Table~\ref{tab:escape}). Two items remain: a custom
 seccomp profile, so that the \texttt{ptrace} denial stops depending on the
 host's Yama setting, and a per-sandbox egress allow-list, until which
 networked execution is refused. The upload path for artifacts above the
 inline cap is also unimplemented.
-
-\begin{table}[t]
-\centering
-\caption{Hardening checklist for the Docker driver.}
-\label{tab:hardening}
-\scriptsize
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}>{\raggedright\arraybackslash}p{.27\columnwidth}>{\raggedright\arraybackslash}p{.22\columnwidth}>{\raggedright\arraybackslash}p{.43\columnwidth}@{}}
-\toprule
-Pre-hardening gap & Vector & Status in this release \\
-\midrule
-Writable rootfs & \texttt{ro\_root} & fixed: \texttt{ReadonlyRootfs}; confirmed \\
-Default capability set & \texttt{raw\_socket}, \texttt{modprobe} & fixed: \texttt{CapDrop ALL}; confirmed \\
-No process cap & \texttt{fork\_bomb} & fixed: \texttt{PidsLimit} 256; confirmed \\
-Permissive \texttt{ptrace} & \texttt{ptrace\_agent} & denied via capability drop and Yama; custom seccomp pending \\
-Bridge network by default & \texttt{rfc1918}, \texttt{imds} & fail closed: network \texttt{none}; egress policy pending \\
-Oversize artifacts dropped & (none) & upload path pending \\
-\bottomrule
-\end{tabular}
-\end{table}
 
 \subsection{gVisor as the next boundary}
 Because Docker accepts \texttt{runsc} as a container runtime, the cheapest

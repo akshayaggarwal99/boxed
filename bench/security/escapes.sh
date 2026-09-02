@@ -35,6 +35,8 @@ run() { # id lang code -> JSON exec response
 }
 field() { python3 -c 'import sys,json;d=json.load(sys.stdin);v=d.get(sys.argv[1]);print("" if v is None else v)' "$1"; }
 hostcat() { $HOST_SSH sudo cat "$1" 2>/dev/null | tr -d '\r'; }
+hostsh()  { $HOST_SSH sudo sh -c "$1" 2>/dev/null | tr -d '\r'; }
+alive()   { run "$1" bash 'echo alive' | field stdout | grep -q alive; }
 csvq() { printf '%s' "$1" | tr ',' ';' | tr '\n' ' ' | sed 's/"//g'; }
 
 emit() { # name threat exit sig post evidence
@@ -121,10 +123,19 @@ except PermissionError as e:
 v_setns() {
   local id out ec so sig post ev
   id=$(mk); [[ -z "$id" ]] && { emit setns T2 - ERROR ERROR "no sandbox"; return; }
-  out=$(run "$id" bash 'before=$(readlink /proc/self/ns/pid); unshare --user --pid --fork bash -c "readlink /proc/self/ns/pid" >/tmp/ns 2>/tmp/err; rc=$?; after=$(cat /tmp/ns 2>/dev/null); echo "rc=$rc err=$(cat /tmp/err)"; if [[ $rc -ne 0 || -z "$after" ]]; then echo "POST:DENIED|unshare rc=$rc $(head -c 80 /tmp/err)"; else echo "POST:UNDENIED|new pid ns $after (was $before)"; fi')
+  # A new namespace only matters if it is a host kernel namespace. Hold the
+  # unshared child alive briefly and look for its namespace inode on the host:
+  # under a kernel-emulating runtime (gVisor) the id is synthetic and absent
+  # from the host, so the namespace is contained even though unshare succeeded.
+  out=$(run "$id" bash 'before=$(readlink /proc/self/ns/pid); unshare --user --pid --fork bash -c "readlink /proc/self/ns/pid; sleep 4" >/tmp/ns 2>/tmp/err & sleep 1; rc=0; after=$(head -1 /tmp/ns 2>/dev/null); [[ -z "$after" ]] && rc=1; echo "rc=$rc err=$(head -c 80 /tmp/err)"; if [[ $rc -ne 0 ]]; then echo "POST:DENIED|unshare failed: $(head -c 80 /tmp/err)"; else echo "POST:CHECKHOST|new pid ns $after (was $before)"; fi; wait')
   ec=$(printf '%s' "$out" | field exit_code); so=$(printf '%s' "$out" | field stdout)
   sig=$(printf '%s' "$so" | grep -qiE 'permission denied|operation not permitted|denied' && echo DENIED || echo UNDENIED)
   post=$(printf '%s' "$so" | sed -n 's/^POST:\([A-Z]*\)|.*/\1/p' | tail -1); ev=$(printf '%s' "$so" | sed -n 's/^POST:[A-Z]*|//p' | tail -1)
+  if [[ "$post" == "CHECKHOST" ]]; then
+    ino=$(printf '%s' "$ev" | sed -n 's/.*new pid ns pid:\[\([0-9]*\)\].*/\1/p')
+    hostns=$(hostsh "ls -Li /proc/[0-9]*/ns/pid 2>/dev/null | awk '{print \$1}' | sort -u | tr '\\n' ' '")
+    if [[ -n "$ino" && " $hostns " == *" $ino "* ]]; then post=UNDENIED; ev="$ev; namespace inode $ino is visible on the host"; else post=DENIED; ev="$ev; not a host kernel namespace (inode absent from host /proc)"; fi
+  fi
   emit setns T2 "$ec" "$sig" "${post:-ERROR}" "$ev"; rm_ "$id"
 }
 
@@ -132,7 +143,8 @@ v_egress() { # name target
   local id out ec so sig post ev
   id=$(mk); [[ -z "$id" ]] && { emit "$1" T3 - ERROR ERROR "no sandbox"; return; }
   out=$(run "$id" python "import socket,os
-ifaces=sorted(os.listdir('/sys/class/net'))
+try: ifaces=sorted(os.listdir('/sys/class/net'))
+except Exception as e: ifaces=['(no /sys/class/net: %s)'%type(e).__name__]
 try:
     s=socket.socket(); s.settimeout(3); s.connect(('$2',80)); print('CONNECTED'); ok=True
 except Exception as e:
@@ -172,6 +184,12 @@ print("POST:%s|forked=%d %s"%("DENIED" if err else "UNDENIED",len(kids),err or "
   pmax=$(hostcat "$(cg $id)/pids.max"); pev=$(hostcat "$(cg $id)/pids.events" | tr '\n' ' ')
   sig=$(printf '%s' "$so" | grep -qiE 'killed|cannot fork|resource temporarily unavailable|EAGAIN' && echo DENIED || echo UNDENIED)
   post=$(printf '%s' "$so" | sed -n 's/^POST:\([A-Z]*\)|.*/\1/p' | tail -1); ev="$(printf '%s' "$so" | sed -n 's/^POST:[A-Z]*|//p' | tail -1) host:pids.max=$pmax pids.events=$pev"
+  if [[ -z "$post" ]]; then
+    # no verdict printed: the exec channel dropped. If the sandbox is gone the
+    # limit killed it outright (denied, with collateral); if it is alive the
+    # harness lost the result.
+    if alive "$id"; then post=ERROR; ev="exec returned no exit code, sandbox alive $ev"; else post=DENIED; ev="exec channel dropped and sandbox is dead: the limit killed the whole sandbox, agent included $ev"; fi
+  fi
   emit fork_bomb T4 "$ec" "$sig" "${post:-ERROR}" "$ev"; rm_ "$id"
 }
 
@@ -203,7 +221,9 @@ except MemoryError:
     # killed (exit -1 = died by signal, 137 = SIGKILL) or the limit fired
     # somewhere we can read. Only a normal exit after a full allocation is a
     # failure of the boundary, and that case prints POST:UNDENIED itself.
-    if [[ "$ec" == "-1" || "$ec" == "137" || "$mev" == *"oom_kill "[1-9]* || "$inb" == *"oom_kill "[1-9]* ]]; then post=DENIED; else post=ERROR; fi
+    if [[ "$ec" == "-1" || "$ec" == "137" || "$mev" == *"oom_kill "[1-9]* || "$inb" == *"oom_kill "[1-9]* ]]; then post=DENIED
+    elif [[ -z "$ec" ]] && ! alive "$id"; then post=DENIED; inb="$inb; exec channel dropped and sandbox is dead: the limit killed the whole sandbox, agent included"
+    else post=ERROR; fi
   fi
   ev="exit=$ec host:memory.max=$mmax $mev sandbox:$inb"
   emit mem_bomb T4 "$ec" "$sig" "$post" "$ev"; rm_ "$id"

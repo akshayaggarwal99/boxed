@@ -1,0 +1,15 @@
+\begin{table}[t]
+\centering
+\caption{Throughput against host core count (GCE \texttt{n2-standard-\{4,8,16\}}, native runc, create$\rightarrow$destroy lifecycles, 80 per level). Mean sandboxes/s with 95\% CI at the best level.}
+\label{tab:scaling}
+\footnotesize
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+vCPU & sweeps & at $c{=}1$ & peak & at $c$ & at $c{=}32$ \\
+\midrule
+4 & 10 & 3.8 & \textbf{12.3} $\pm$0.1 & 8 & 11.5 \\
+8 & 10 & 4.3 & \textbf{13.6} $\pm$1.0 & 8 & 11.2 \\
+16 & 10 & 4.4 & \textbf{15.2} $\pm$0.1 & 4 & 11.3 \\
+\bottomrule
+\end{tabular}
+\end{table}

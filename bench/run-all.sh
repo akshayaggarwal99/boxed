@@ -7,6 +7,9 @@ RUN="${RUN:-hardened-2026-09}"
 CAMPAIGN_NOTE="${CAMPAIGN_NOTE:-}"
 REPEATS="${REPEATS:-5}"
 TP_REPEATS="${TP_REPEATS:-10}"
+N="${N:-200}"        # lifecycles per cold-start / baseline run
+TPN="${TPN:-80}"     # lifecycles per throughput level
+OVN="${OVN:-30}"     # idle sandboxes sampled
 ENDPOINT="${ENDPOINT:-http://127.0.0.1:8080}"
 export BOXED_API_KEY="${BOXED_API_KEY:-bench}"
 OUT="results/$RUN"; mkdir -p "$OUT"
@@ -30,21 +33,21 @@ OUT="results/$RUN"; mkdir -p "$OUT"
 
 for r in $(seq 1 "$REPEATS"); do
   d="$OUT/r$r"; mkdir -p "$d"
-  echo "== repeat $r coldstart (boxed)"; ./bin/boxed-bench --scenario=coldstart --n=200 --endpoint="$ENDPOINT" --out="$d"
-  echo "== repeat $r baseline hardened"; ./bin/boxed-bench --scenario=baseline --mode=hardened --n=200 --out="$d"
-  echo "== repeat $r baseline default";  ./bin/boxed-bench --scenario=baseline --mode=default  --n=200 --out="$d"
+  echo "== repeat $r coldstart (boxed)"; ./bin/boxed-bench --scenario=coldstart --n=$N --endpoint="$ENDPOINT" --out="$d"
+  echo "== repeat $r baseline hardened"; ./bin/boxed-bench --scenario=baseline --mode=hardened --n=$N --out="$d"
+  echo "== repeat $r baseline default";  ./bin/boxed-bench --scenario=baseline --mode=default  --n=$N --out="$d"
 done
 
 for r in $(seq 1 "$TP_REPEATS"); do
   d="$OUT/tp$r"; mkdir -p "$d"
   echo "== throughput sweep $r"
   for c in 1 2 4 8 16 32; do
-    ./bin/boxed-bench --scenario=throughput --n=80 --conc=$c --endpoint="$ENDPOINT" --out="$d"
+    ./bin/boxed-bench --scenario=throughput --n=$TPN --conc=$c --endpoint="$ENDPOINT" --out="$d"
   done
   sleep 5
 done
 
-echo "== overhead"; ./bin/boxed-bench --scenario=overhead --n=30 --endpoint="$ENDPOINT" --out="$OUT"
+echo "== overhead"; ./bin/boxed-bench --scenario=overhead --n=$OVN --endpoint="$ENDPOINT" --out="$OUT"
 
 for r in 1 2 3; do
   echo "== escapes $r"; ENDPOINT="$ENDPOINT" bash security/escapes.sh > "$OUT/escapes_r$r.csv"
