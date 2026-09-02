@@ -22,6 +22,7 @@ tables:
 	$(PYTHON) $(BENCH)/analyze/openhands.py $(BENCH)/results tables linux-openhands-2026-09 linux-runc-2026-09
 	$(PYTHON) $(BENCH)/analyze/scaling.py $(BENCH)/results tables figures $(LINUX):4 linux-8core-2026-09:8 linux-16core-2026-09:16
 	$(PYTHON) $(BENCH)/analyze/plots.py $(BENCH)/results/$(RUN) figures
+	$(PYTHON) $(BENCH)/analyze/summary_fig.py $(BENCH)/results figures
 	$(BENCH)/analyze/constants.sh tables/constants.tex
 
 pdf: main.tex tables/numbers.tex tables/constants.tex tables/comparison.tex refs.bib

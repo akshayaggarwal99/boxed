@@ -509,6 +509,20 @@ also reports throughput under concurrency, idle per-sandbox overhead, and an
 end-to-end agent trace. Every number below expands from a macro that the released analysis scripts
 generate from the raw traces in the repository.
 
+Fig.~\ref{fig:summary} collects every lifecycle measured in the paper on
+one axis.
+
+\begin{figure}[t]
+ \centering
+ \includegraphics[width=.95\columnwidth]{figures/summary.pdf}
+ \caption{Median create$\rightarrow$exec$\rightarrow$destroy for every
+ configuration measured, grouped by host. Same image and command
+ throughout; Sections~\ref{sec:lifecycle}, \ref{sec:linux},
+ \ref{sec:runtimes}, and~\ref{sec:openhands} give the sample sizes and
+ confidence intervals.}
+ \label{fig:summary}
+\end{figure}
+
 \subsection{Setup}
 The laptop measurements were taken on a MacBook Pro (Apple M1~Pro, 16\,GB,
 macOS~26.5) with Docker Engine 29.5 (\texttt{linux/arm64}, kernel 6.8,
