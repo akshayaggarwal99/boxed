@@ -10,8 +10,11 @@ the author.
 - [x] Raw-Docker baseline on the same host/image/command, stock and hardened configs, interleaved with Boxed runs.
 - [x] Idle overhead n=30.
 - [x] Agent trace on official HumanEval/0..19 with claude-opus-5, 3 repetitions (60/60 pass, real exit codes, negative control verified). Host load 13-17 during the runs is recorded in `agent_trace.LOAD` and stated in the paper.
-- [ ] Optional: native Linux rerun (`RUN=linux-<date> ./run-all.sh` on a Linux host with HOST_SSH="").
-- [ ] Optional: gVisor `--runtime=runsc` comparison (needs native Linux; not supported inside the macOS VM).
+- [x] Native Linux rerun on GCE n2-standard-4 (`results/linux-2026-09`): relative results reproduce; substrate share 16% on both hosts.
+- [x] Runtime swap on one nested-virt host (`results/linux-{runc,runsc,kata}-2026-09`): runc 354 / gVisor 405 / Kata 7824 ms; ptrace attach on the agent succeeds under Kata (no Yama in the guest kernel); two hardening knobs cost seconds on Kata (`knobs.csv`).
+- [x] Core scaling 4/8/16 vCPU (`results/linux-{8,16}core-2026-09`): 4x cores -> 1.2x peak.
+- [ ] Close the ptrace gap (agent non-dumpable or own uid) and re-verify under Kata; ~30 min on a nested-virt VM.
+- [ ] OpenHands runtime on the same host (the remaining 'compare to a competitor' ask).
 
 ## Manuscript
 - [x] Firecracker/Wasm "stub" claim removed everywhere (abstract, contributions, Fig. 2, Table I, Sec. IV, README).
@@ -30,6 +33,6 @@ the author.
 ## Artifact
 - Note: `bench/.env` holds the API key (mode 600, gitignored). Delete it or rotate the key when done.
 - [x] `bench/analyze/constants.sh` regenerates LOC/binary sizes from the tree.
-- [x] Committed on `paper-v2-ieee`, tagged `v0.2.0-paper`, pushed (1 Sep 2026).
+- [x] Committed on `paper-v2-ieee`, tagged `v0.2.0-paper` (1 Sep) and `v0.3.0-paper` (2 Sep, adds the runtime switch and the cloud campaigns), pushed.
 - [ ] Retire `O1A/Akshay Kumar Paper 1_07-08-2026.docx`; the tex is the only manuscript.
 - [ ] IEEE PDF eXpress check on the final PDF; ORCID in the author block if the venue requires it.

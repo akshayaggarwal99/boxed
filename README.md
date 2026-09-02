@@ -28,7 +28,7 @@ Building an AI Agent that writes code? You have a problem.
 
 ## ✨ Features
 
-- **🔒 Backend behind an interface** — one `Driver` interface; the Docker driver is the only implementation. No Firecracker or Wasm backend exists yet.
+- **🔒 Backend behind an interface** — one `Driver` interface; the Docker driver is the only implementation. Set `BOXED_DOCKER_RUNTIME=runsc` (gVisor) or `=kata` to swap the OCI runtime under it; the paper measures all three on one host. No Firecracker or Wasm driver exists yet.
 - **🛡️ Bring-Your-Own-Key auth** — operator-chosen API key via `X-Boxed-API-Key`. No vendor accounts.
 - **⚡ Fast lifecycle** — create+exec+destroy measured against raw Docker on the same host; numbers and CIs in the [paper](paper-v2/Boxed-IEEE.pdf) and `bench/results/`.
 - **📁 First-class artifacts** — in-VM Rust agent streams stdout, stderr, and emitted files (images, PDFs, datasets) over JSON-RPC.

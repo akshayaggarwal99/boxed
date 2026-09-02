@@ -35,7 +35,7 @@ def load_all(run: Path, name: str) -> pd.DataFrame:
 
 def plot_lifecycle(run: Path, out: Path):
     boxed, hard, dflt = load_all(run, "coldstart.csv"), load_all(run, "baseline_hardened.csv"), load_all(run, "baseline_default.csv")
-    fig, (a, b) = plt.subplots(1, 2, figsize=(7.0, 2.2))
+    fig, a = plt.subplots(figsize=(3.4, 2.0))
     cdf(a, dflt["total_ms"], "raw Docker, stock defaults", color=C_DEF, ls=":")
     cdf(a, hard["total_ms"], "raw Docker, hardened config", color=C_HARD, ls="--")
     cdf(a, boxed["total_ms"], "Boxed (plane + agent)", color=C_BOXED)
@@ -43,16 +43,6 @@ def plot_lifecycle(run: Path, out: Path):
     a.set_xticks([100, 200, 500, 1000, 2000]); a.set_xticklabels(["100", "200", "500", "1000", "2000"])
     a.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
     a.legend(loc="lower right", frameon=False); a.grid(True, alpha=0.3)
-    a.set_title("(a) end-to-end lifecycle", fontsize=8)
-    phases = [("create_ms", "create"), ("first_exec_ms", "first exec"), ("destroy_ms", "destroy")]
-    x = np.arange(len(phases)); wd = 0.26
-    for i, (df, lab, col) in enumerate([(dflt, "stock", C_DEF), (hard, "hardened", C_HARD), (boxed, "Boxed", C_BOXED)]):
-        med = [np.median(df[p]) for p, _ in phases]
-        q1 = [np.percentile(df[p], 25) for p, _ in phases]; q3 = [np.percentile(df[p], 75) for p, _ in phases]
-        b.bar(x + (i - 1) * wd, med, wd, label=lab, color=col,
-              yerr=[np.subtract(med, q1), np.subtract(q3, med)], capsize=2, error_kw={"lw": 0.7})
-    b.set_xticks(x); b.set_xticklabels([l for _, l in phases]); b.set_ylabel("median (ms), IQR bars")
-    b.legend(frameon=False); b.grid(True, axis="y", alpha=0.3); b.set_title("(b) per-phase", fontsize=8)
     fig.savefig(out / "lifecycle.pdf"); plt.close(fig)
 
 

@@ -14,12 +14,12 @@ def pooled(run, name):
 res, out = Path(sys.argv[1]), Path(sys.argv[2])
 L = ["\\begin{table}[t]", "\\centering",
      "\\caption{Lifecycle latency on two hosts, medians over 5 runs $\\times$ 200 sequential create$\\rightarrow$exec$\\rightarrow$destroy cycles per configuration, same image and command. Raw Docker rows call the Engine API directly with no control plane and no agent. All values in ms.}",
-     "\\label{tab:lifecycle}", "\\scriptsize", "\\setlength{\\tabcolsep}{4pt}", "\\begin{tabular}{@{}lrrrrrr@{}}", "\\toprule",
+     "\\label{tab:lifecycle}", "\\scriptsize", "\\setlength{\\tabcolsep}{2.5pt}", "\\begin{tabular}{@{}lrrrrrr@{}}", "\\toprule",
      "Configuration & create & exec & destroy & total & IQR & p95 \\\\"]
 for spec in sys.argv[3:]:
     label, run = spec.split("=", 1)
     L += ["\\midrule", f"\\multicolumn{{7}}{{@{{}}l}}{{\\emph{{{label}}}}} \\\\"]
-    for name, f in (("Raw Docker, stock defaults", "baseline_default.csv"), ("Raw Docker, hardened config", "baseline_hardened.csv"), ("Boxed (plane + agent)", "coldstart.csv")):
+    for name, f in (("Raw Docker, stock", "baseline_default.csv"), ("Raw Docker, hardened", "baseline_hardened.csv"), ("Boxed (plane + agent)", "coldstart.csv")):
         df = pooled(res / run, f); t = df["total_ms"]
         L.append(f"\\quad {name} & {np.median(df['create_ms']):.0f} & {np.median(df['first_exec_ms']):.0f} & {np.median(df['destroy_ms']):.0f} & "
                  f"\\textbf{{{np.median(t):.0f}}} & {np.percentile(t,75)-np.percentile(t,25):.0f} & {np.percentile(t,95):.0f} \\\\")
