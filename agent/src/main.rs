@@ -18,6 +18,36 @@ mod executor;
 mod fs_watcher;
 mod rpc;
 
+/// Clear the dumpable flag so that PTRACE_ATTACH from a process without
+/// CAP_SYS_PTRACE fails with EPERM regardless of Yama. Linux only; a no-op
+/// elsewhere.
+fn harden_against_ptrace() -> std::io::Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+        // SAFETY: prctl with PR_SET_DUMPABLE and integer arguments has no
+        // memory-safety preconditions.
+        let rc = unsafe { libc::prctl(libc::PR_SET_DUMPABLE, 0 as libc::c_ulong, 0, 0, 0) };
+        if rc != 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        let now = unsafe { libc::prctl(libc::PR_GET_DUMPABLE, 0, 0, 0, 0) };
+        if now != 0 {
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, format!("dumpable still {now}")));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod ptrace_tests {
+    #[test]
+    fn agent_is_non_dumpable_after_hardening() {
+        super::harden_against_ptrace().expect("prctl failed");
+        let d = unsafe { libc::prctl(libc::PR_GET_DUMPABLE, 0, 0, 0, 0) };
+        assert_eq!(d, 0);
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize structured JSON logging
@@ -27,6 +57,18 @@ async fn main() -> Result<()> {
         .init();
 
     info!(version = env!("CARGO_PKG_VERSION"), "🗳️ Boxed Agent starting");
+
+    // The agent is a peer of the workload in the sandbox's PID namespace, and
+    // in every runtime it runs as the same uid as the workload. A same-uid
+    // process can ptrace a dumpable target without any capability, so the
+    // only thing stopping the workload from attaching to the agent is a host
+    // kernel policy (Yama) that a guest kernel may not have. Marking the agent
+    // non-dumpable makes the kernel's own ptrace access check refuse a tracer
+    // that lacks CAP_SYS_PTRACE, which the driver drops.
+    match harden_against_ptrace() {
+        Ok(()) => info!("agent marked non-dumpable (PR_SET_DUMPABLE=0)"),
+        Err(e) => error!(error = %e, "could not mark agent non-dumpable"),
+    }
 
     // The agent communicates over stdin/stdout for maximum compatibility
     // Docker: Attaches via exec

@@ -32,7 +32,7 @@ def main():
         lo, hi = mean.min(), mean.max()
         T.append((cores, len(tps), mean[1], mean[best], int(best), ci[best], mean.get(32, float('nan'))))
     ax.set_xscale("log", base=2); ax.set_xlabel("client concurrency"); ax.set_ylabel("sandboxes / s")
-    ax.legend(frameon=False, loc="upper left"); ax.grid(True, alpha=0.3)
+    ax.legend(frameon=False, loc="lower right"); ax.grid(True, alpha=0.3); ax.set_ylim(bottom=0)
     fig.savefig(fout / "scaling.pdf"); plt.close(fig)
     if len(T) >= 2:
         macros["ScaleRatioMax"] = f"{T[-1][3]/T[0][3]:.1f}$\\times$"

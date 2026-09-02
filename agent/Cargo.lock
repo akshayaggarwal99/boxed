@@ -64,6 +64,7 @@ dependencies = [
  "anyhow",
  "base64",
  "futures",
+ "libc",
  "mime_guess",
  "notify",
  "serde",

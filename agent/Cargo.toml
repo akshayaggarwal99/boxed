@@ -38,6 +38,10 @@ base64 = "0.22"
 # MIME type detection for artifacts
 mime_guess = "2.0"
 
+# prctl(PR_SET_DUMPABLE): make the agent non-ptrace-able by a same-uid
+# workload process without CAP_SYS_PTRACE
+libc = "0.2"
+
 # Error handling
 thiserror = "1.0"
 anyhow = "1.0"
