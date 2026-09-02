@@ -1,0 +1,13 @@
+test,threat,attempt_exit,signature,postcondition,evidence
+mount_host,T1;T2,0,DENIED,DENIED,"mounts_on_/mnt=0"
+proc1_root,T1,0,DENIED,DENIED,"proc1_root_dev_ino=18:1 root_dev_ino=18:1 pid1=tail"
+docker_sock,T2;T3,0,UNDENIED,DENIED,"sockets_found=0 api_reachable=False"
+modprobe,T2,0,DENIED,DENIED,"init_module errno=1(Operation not permitted)"
+raw_socket,T2,0,DENIED,DENIED,"errno=1(Operation not permitted)"
+setns,T2,0,UNDENIED,DENIED,"new pid ns pid:[9] (was pid:[5]); not a host kernel namespace (inode absent from host /proc)"
+rfc1918,T3,0,DENIED,DENIED,"ifaces=(no /sys/class/net: FileNotFoundError)"
+imds,T3,0,DENIED,DENIED,"ifaces=(no /sys/class/net: FileNotFoundError)"
+fork_bomb,T4,,UNDENIED,DENIED,"exec channel dropped and sandbox is dead: the limit killed the whole sandbox; agent included  host:pids.max= pids.events="
+mem_bomb,T4,,UNDENIED,DENIED,"exit= host:memory.max=536870912  sandbox:; exec channel dropped and sandbox is dead: the limit killed the whole sandbox; agent included"
+ro_root,T1,0,DENIED,DENIED,"/etc:absent /usr/bin:absent "
+ptrace_agent,T2;T3,0,DENIED,DENIED,"PTRACE_ATTACH pid=2 errno=1(Operation not permitted) yama=1"

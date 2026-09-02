@@ -5,7 +5,7 @@
 # Built with tectonic (brew install tectonic); no TeX Live prerequisite.
 
 RUN ?= hardened-2026-09
-export RELEASE_TAG ?= v0.3.0-paper
+export RELEASE_TAG ?= v0.3.1-paper
 PDF := Boxed-IEEE.pdf
 TECTONIC ?= $(shell command -v tectonic || echo /opt/homebrew/bin/tectonic)
 PYTHON ?= python3

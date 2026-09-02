@@ -13,7 +13,7 @@ the author.
 - [x] Native Linux rerun on GCE n2-standard-4 (`results/linux-2026-09`): relative results reproduce; substrate share 16% on both hosts.
 - [x] Runtime swap on one nested-virt host (`results/linux-{runc,runsc,kata}-2026-09`): runc 354 / gVisor 405 / Kata 7824 ms; ptrace attach on the agent succeeds under Kata (no Yama in the guest kernel); two hardening knobs cost seconds on Kata (`knobs.csv`).
 - [x] Core scaling 4/8/16 vCPU (`results/linux-{8,16}core-2026-09`): 4x cores -> 1.2x peak.
-- [ ] Close the ptrace gap (agent non-dumpable or own uid) and re-verify under Kata; ~30 min on a nested-virt VM.
+- [x] ptrace gap closed: agent calls prctl(PR_SET_DUMPABLE,0) at startup (dbc0354). Re-verified with the probe under runc/gVisor/Kata on a nested-virt VM, 3 runs each, 12/12 everywhere; Kata evidence `errno=1 yama=absent` (`results/linux-*-2026-09-agentfix`). Local before/after with Yama off also recorded in the commit message.
 - [ ] OpenHands runtime on the same host (the remaining 'compare to a competitor' ask).
 
 ## Manuscript
@@ -33,6 +33,6 @@ the author.
 ## Artifact
 - Note: `bench/.env` holds the API key (mode 600, gitignored). Delete it or rotate the key when done.
 - [x] `bench/analyze/constants.sh` regenerates LOC/binary sizes from the tree.
-- [x] Committed on `paper-v2-ieee`, tagged `v0.2.0-paper` (1 Sep) and `v0.3.0-paper` (2 Sep, adds the runtime switch and the cloud campaigns), pushed.
+- [x] Committed on `paper-v2-ieee`, tagged `v0.2.0-paper` (1 Sep), `v0.3.0-paper` (2 Sep, runtime switch + cloud campaigns), `v0.3.1-paper` (2 Sep, non-dumpable agent + Kata re-verification), pushed.
 - [ ] Retire `O1A/Akshay Kumar Paper 1_07-08-2026.docx`; the tex is the only manuscript.
 - [ ] IEEE PDF eXpress check on the final PDF; ORCID in the author block if the venue requires it.

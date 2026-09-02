@@ -78,9 +78,11 @@ unchanged driver gives \RuncBoxedMedian{} per lifecycle with \texttt{runc},
 \RunscBoxedMedian{} with gVisor, and \KataBoxedMedian{} with a Kata
 microVM, with the substrate cost close to constant across the three. A
 twelve-vector escape probe scored by post-conditions read from the host
-denies all twelve vectors under \texttt{runc} and gVisor and eleven under
-Kata, where the microVM's guest kernel lacks the host policy that had been
-stopping a \texttt{ptrace} attach on the in-sandbox agent. Throughput on one
+denies all twelve vectors under \texttt{runc} and gVisor and, with the
+agent as first released, eleven under Kata: the microVM's guest kernel
+lacks the host policy that had been stopping a \texttt{ptrace} attach on
+the in-sandbox agent. A one-line change that marks the agent non-dumpable
+restores twelve under all three. Throughput on one
 host is bound by the Docker daemon: four times the cores gives
 \ScaleRatioMax{} the sandboxes per second. Boxed, the harness, and every
 raw trace are MIT-licensed.
@@ -199,9 +201,9 @@ checks used here are applied to the same attempts, and the paper reports
 where they disagree.
 \item The same driver, agent, and harness run under three OCI runtimes on
 one host (\texttt{runc}, gVisor, Kata), which measures the backend switch
-the interface was designed for, exposes a \texttt{ptrace} gap that the
-container runtime had been hiding, and shows that two hardening settings
-free under \texttt{runc} cost seconds under a microVM. A core-scaling
+the interface was designed for, exposes and then closes a \texttt{ptrace}
+gap that the container runtime had been hiding, and shows that two
+hardening settings free under \texttt{runc} cost seconds under a microVM. A core-scaling
 sweep on 4, 8, and 16 vCPUs shows that single-host throughput is bound by
 the daemon.
 \end{itemize}
@@ -282,14 +284,13 @@ and apart from Daytona and OpenHands the platforms are hosted services.
 
 \subsection{Evaluating LLM-generated code execution}
 Chen \emph{et al.}~\cite{humaneval} made single-function code generation a
-standard benchmark. Yang \emph{et al.}~\cite{sweagent} extended it to
-agent-mediated software engineering, where the agent has to \emph{run} the
-code it writes and refine it. Our agent trace (Section~\ref{sec:agent})
-follows that regime on official HumanEval tasks: the model emits a candidate
-Python function, Boxed runs it against the task's published test, and the
-harness records the process exit status. Splitting end-to-end wall-clock into
-model inference and sandbox lifecycle shows how much of an agent's latency a
-substrate can affect at all.
+standard benchmark, and Yang \emph{et al.}~\cite{sweagent} extended it to
+agents that have to \emph{run} the code they write. Our agent trace
+(Section~\ref{sec:agent}) follows that regime on official HumanEval tasks:
+the model emits a function, Boxed runs it against the task's published test,
+and the exit status decides. Splitting wall-clock into model inference and
+sandbox lifecycle shows how much of an agent's latency a substrate can
+affect at all.
 
 \input{tables/comparison}
 
@@ -481,7 +482,9 @@ they arrive, so a model can react to partial output or an early error before
 the program finishes. When the child exits the agent reports its exit
 status. An earlier release reported zero unconditionally; the fix is in the
 current source, and Section~\ref{sec:agent} covers what it did to the
-agent-trace results. Alongside, an \texttt{inotify} watcher monitors the
+agent-trace results. At startup the agent also marks itself non-dumpable
+(\texttt{PR\_SET\_DUMPABLE}), for the reason Section~\ref{sec:runtimes}
+gives. Alongside, an \texttt{inotify} watcher monitors the
 artifact directory (\texttt{/output}). Any file written there is emitted as
 an \texttt{artifact} event with the file's MIME type and base64 contents,
 so an agent that asks Python to write \texttt{plot.png} gets the bytes
@@ -638,13 +641,9 @@ comes from.
 Each of \BoxedOverheadN{} idle sandboxes was sampled five seconds after
 \texttt{create} returned. Median working set, as \texttt{docker stats}
 reports it from the container cgroup, is \BoxedRSSMedian{} (p95
-\BoxedRSSPNinetyFive, maximum \BoxedRSSMax); median CPU is
-\BoxedCPUMedian{}. This is cgroup accounting inside the VM and not a
-process-level measurement on a native host, so we take it as an order of
-magnitude. It fits the design: the agent is a stripped Rust binary that holds
-no buffers and waits on one \texttt{tokio} event loop for a JSON-RPC frame,
-whereas a Python or Node agent would carry an interpreter and a module cache
-while idle.
+\BoxedRSSPNinetyFive); median CPU is \BoxedCPUMedian{}. This is cgroup
+accounting inside a VM, so we take it as an order of magnitude; it fits an
+agent that is a stripped Rust binary parked on one \texttt{tokio} loop.
 
 
 \subsection{Escape probe with post-condition checks}\label{sec:escape}
@@ -659,15 +658,14 @@ Each attempt runs in a fresh sandbox, and the whole suite ran
 \BoxedEscapeRuns{} times.
 
 Each vector gets two verdicts on the same attempt. The \emph{signature}
-verdict is the method from the earlier version of this work: capture
-\texttt{stdout} and \texttt{stderr} and grep for a denial string. The
-\emph{post-condition} verdict looks at state after the attempt: whether a
-mount appeared in \texttt{/proc/mounts}, whether the written file exists,
-the \texttt{errno} the syscall returned, which device and inode
-\texttt{/proc/1/root} resolves to, and, for the resource vectors, the
-cgroup's \texttt{pids.events} and \texttt{memory.events} counters read on
-the host, outside the sandbox. Table~\ref{tab:escape} gives both verdicts
-and the evidence for every vector.
+verdict is the earlier method: capture \texttt{stdout} and \texttt{stderr}
+and grep for a denial string. The \emph{post-condition} verdict looks at
+state after the attempt: whether a mount appeared in \texttt{/proc/mounts},
+whether the written file exists, the \texttt{errno} the syscall returned,
+which device and inode \texttt{/proc/1/root} resolves to, and, for the
+resource vectors, the cgroup's \texttt{pids.events} and
+\texttt{memory.events} counters read on the host. Table~\ref{tab:escape}
+gives both verdicts and the evidence for every vector.
 
 \input{tables/escapes}
 
@@ -778,12 +776,11 @@ probe denies \LinuxBoxedEscapeDenied{} of \LinuxBoxedEscapeTotal{} vectors,
 \LinuxBoxedEscapeConsistent{} across \LinuxBoxedEscapeRuns{} runs, with the
 signature method disagreeing on \LinuxBoxedEscapeSigDisagree{}. The agent
 trace passed \LinuxBoxedAgentPassCount{} of \LinuxBoxedAgentN{} executions
-with model inference at \LinuxBoxedAgentLLMShare{} of wall-clock
-(\LinuxBoxedAgentLLMShareRepRange{} across repetitions), and sandbox create
-in the agent loop had a median of \LinuxBoxedAgentCreateMedian{}
-(\LinuxBoxedAgentCreateRepRange) against \LinuxBoxedColdCreateMedian{} in
-the tight loop on the same host: on a quiet host the gap seen on the laptop
-is gone, which is what the load explanation predicted.
+with model inference at \LinuxBoxedAgentLLMShare{} of wall-clock, and
+sandbox create in the agent loop had a median of
+\LinuxBoxedAgentCreateMedian{} against \LinuxBoxedColdCreateMedian{} in
+the tight loop on the same host: on a quiet host the laptop's gap is gone,
+as the load explanation predicted.
 
 The substrate's share of the raw cost is \LinuxBoxedOverheadPct{} here and
 \BoxedOverheadPct{} on the laptop, the hardened configuration is faster
@@ -811,13 +808,12 @@ Boxed's lifecycle is \RuncBoxedMedian{} under \texttt{runc},
 constant, so it is \RuncCostShare{} of a container lifecycle,
 \RunscCostShare{} of a gVisor one, and \KataCostShare{} of a microVM one. The boundary sets the price; the control
 plane and agent do not. Kata's raw stock lifecycle is \KataKnobStock{} on
-this host and its hardened one \KataHardMedian{}, and isolating the flags
-(\texttt{knobs.csv}, three runs each) shows why: network \texttt{none} takes
-a bare Kata boot from \KataKnobStock{} to \KataKnobNetNone{} and the
-one-core CPU quota to \KataKnobCpusOne{}, because the quota throttles the
-QEMU process while the guest boots. Two settings that cost nothing under
-\texttt{runc}, where network \texttt{none} is faster than the bridge, cost
-seconds under a microVM. Throughput follows the same order (\RuncPeak{},
+this host and its hardened one \KataHardMedian{}; isolating the flags
+(\texttt{knobs.csv}, three runs each), network \texttt{none} takes a bare
+Kata boot from \KataKnobStock{} to \KataKnobNetNone{} and the one-core CPU
+quota to \KataKnobCpusOne{}, because the quota throttles QEMU while the
+guest boots. Two settings free under \texttt{runc}, where network
+\texttt{none} is faster than the bridge, cost seconds under a microVM. Throughput follows the same order (\RuncPeak{},
 \RunscPeak{}, \KataPeak{} sandboxes/s); Kata also failed to create
 \KataTPErrors{} of \KataTPTotal{} sandboxes once concurrency reached
 \KataTPFirstErrConc{} on this 4-vCPU host, where the other two runtimes
@@ -844,10 +840,16 @@ has no Yama, the workload and the agent both run as root, and a same-uid
 attach needs no capability, so the attach succeeds. The denial the earlier
 sections reported was the host's policy and not Boxed's, exactly as
 Section~\ref{sec:escape} warned, and the stronger boundary removed it. The
-fix is Boxed's to make and is not runtime-specific: mark the agent
-non-dumpable or run it under a different uid from the workload, or ship the
-seccomp profile that blocks \texttt{ptrace}; none of these are in the
-release measured here.
+fix is Boxed's to make and is one line: the agent now calls
+\texttt{prctl(PR\_SET\_DUMPABLE, 0)} at startup, after which the kernel's
+own access check refuses a tracer without \texttt{CAP\_SYS\_PTRACE},
+which the driver drops. Re-running the probe with that agent on the same
+host type gives \KataDeniedFixed{} of 12 under Kata
+(\KataFixedRuns{} runs, \KataFixedConsistent), with the attach failing
+\texttt{\KataPtraceFixedEvidence}, and \RuncDeniedFixed{} and
+\RunscDeniedFixed{} of 12 under \texttt{runc} and gVisor. The other numbers in this section were measured with the earlier agent;
+a \texttt{prctl} at startup is off the lifecycle path and was not
+re-measured.
 
 \subsection{Throughput against core count}\label{sec:scaling}
 The laptop plateau in Section~\ref{sec:throughput} could be the four
@@ -879,15 +881,13 @@ Section~\ref{sec:future}.
 The laptop measurements ran inside a virtual machine on a machine in use;
 the native Linux campaign removes both conditions and reproduces the
 relative results, so the comparison the paper rests on, Boxed against raw
-Docker with the host, image, and command fixed, holds on both. Absolute
+Docker with host, image, and command fixed, holds on both. Absolute
 latencies do not transfer between hosts, and the earlier Docker Desktop
 campaign (\LegacyColdMedian{} on the unhardened driver) cannot be compared
-with either. Within each repeat the three configurations ran in a fixed
-order rather than a random one. The Kata numbers come from nested
-virtualization, which inflates a microVM boot; the runtime ordering and the
-knob attribution are robust to that, the absolute Kata latency is not, and
-Kata's $n$ is 80. No other agent sandbox was run on these hosts; Daytona and
-OpenHands are self-hostable and could be measured with the same harness. The escape probe
+with either. Each repeat ran the three configurations in a fixed order. The Kata numbers come from nested virtualization, which inflates a microVM
+boot; the runtime ordering and knob attribution survive that, the absolute
+Kata latency does not, and Kata's $n$ is 80. No other agent sandbox was run on these hosts; Daytona and OpenHands are
+self-hostable and could be measured with this harness. The escape probe
 is twelve vectors on one image, and it tests configuration; it does not test
 kernel vulnerabilities.
 Throughput lifecycles are create$\rightarrow$destroy without an exec, so they
@@ -915,35 +915,31 @@ driving would set the guest's CPU and network differently. And the agent's
 placement as a peer process, which Section~\ref{sec:impl} flagged, became
 an actual \texttt{ptrace} exposure once the host kernel's Yama policy was
 no longer underneath it. The stronger boundary did not create that gap; it
-removed the accident that was covering it.
+removed the accident that was covering it, and a single-runtime evaluation
+would never have prompted the fix.
 
 \subsection{Pool-based sandbox reuse}
 The driver creates a fresh container per request, which guarantees a clean
-start and pays the create phase every time; Table~\ref{tab:lifecycle} shows
-create is the largest phase for Boxed and raw Docker alike, and under a
-microVM it is nearly all of the cost. Reusing a warmed sandbox for
-compatible follow-up requests would spread that cost, as Oakes \emph{et
-al.}'s SOCK~\cite{sock} does for serverless functions with an LRU cache of
-paused containers; the interface already lets \texttt{Create} return an
-existing identifier. What reuse costs in isolation strength has to be
-measured before anyone relies on it.
+start and pays the create phase every time; create is the largest phase in
+Table~\ref{tab:lifecycle} and nearly all of a microVM lifecycle. Reusing a
+warmed sandbox for compatible follow-up requests would spread that cost, as
+Oakes \emph{et al.}'s SOCK~\cite{sock} does with an LRU cache of paused
+containers, and the interface already lets \texttt{Create} return an
+existing identifier; what reuse costs in isolation has to be measured
+first.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Future Work}\label{sec:future}
 
-The limitations above set the order of work. \emph{Closing the
-\texttt{ptrace} gap} by making the agent non-dumpable or running it under
-its own uid, then re-running the probe under Kata. \emph{A runtime-aware
-driver} that sizes a microVM's CPU and network instead of applying
-\texttt{runc}'s settings. \emph{A custom seccomp profile and egress
-policy}, so the \texttt{ptrace} denial and the network restriction belong
-to Boxed and not to the host. \emph{Sandbox reuse}, measured for the
-latency it saves and the isolation it weakens. \emph{A Firecracker
-driver}, which the runtime swap does not reach because Firecracker under
-Docker needs block-device rootfs storage. After those, a multi-host
-scheduler, since Section~\ref{sec:scaling} shows one daemon is the ceiling,
-and a Wasm/WASI backend once the toolchain runs unmodified language
-runtimes.
+The limitations above set the order of work: a runtime-aware driver that
+sizes a microVM's CPU and network instead of applying \texttt{runc}'s
+settings; a custom seccomp profile and an egress policy, so the network
+restriction is Boxed's and not the host's; sandbox reuse, measured for the
+latency it saves and the isolation it weakens; a Firecracker driver, which
+the runtime swap does not reach because Firecracker under Docker needs
+block-device rootfs storage; then a multi-host scheduler, since
+Section~\ref{sec:scaling} shows one daemon is the ceiling, and a Wasm/WASI
+backend once the toolchain runs unmodified language runtimes.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}\label{sec:conc}
@@ -955,10 +951,11 @@ meant to admit stronger backends. The substrate costs \BoxedOverheadPct{}
 of a raw Docker lifecycle on a laptop and on an idle server alike, and the
 hardening it applies makes raw Docker faster than stock defaults on both.
 The same driver ran under \texttt{runc}, gVisor, and a Kata microVM with
-its cost flat across the three, which is the backend switch the interface
-was built for, measured; the swap also exposed a \texttt{ptrace} attach on
-the agent that only the host kernel's policy had been stopping, and two
-hardening settings that cost seconds under a microVM. Scored by
+its cost flat across the three, the backend switch the interface was built
+for, measured; the swap exposed a \texttt{ptrace} attach on the agent that
+only the host kernel's policy had been stopping, since closed in the agent
+and re-verified under Kata, and two hardening settings that cost seconds
+under a microVM. Scored by
 post-conditions read from the host, the hardened driver stops
 \BoxedEscapeDenied{} of \BoxedEscapeTotal{} escape vectors under
 \texttt{runc}, where the earlier signature method would have reported
@@ -969,12 +966,12 @@ runner, and all raw traces are MIT-licensed at
 \texttt{\BoxedReleaseTag}); \texttt{bench/analyze/stats.py} regenerates
 every number, table, and figure in this paper from them.
 
-\section*{Conflict of Interest}
-The author maintains Boxed as a side project outside of employment and has
-no business relationship with, and no funding from, Docker, Anthropic,
-Google (the cloud hosts ran on a standard free-trial credit), or any vendor
-in Table~\ref{tab:compare}. The raw-Docker baseline, interleaved runs, and
-released harness mitigate the evaluator also being the author.
+\smallskip\noindent\textit{Conflict of interest.} The author maintains Boxed as a
+side project outside of employment and has no business relationship with,
+and no funding from, Docker, Anthropic, Google (the cloud hosts ran on a
+standard free-trial credit), or any vendor in Table~\ref{tab:compare}; the
+raw-Docker baseline, interleaved runs, and released harness mitigate the
+evaluator also being the author.
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}
