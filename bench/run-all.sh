@@ -4,6 +4,7 @@
 # campaign affects both equally.
 set -uo pipefail
 RUN="${RUN:-hardened-2026-09}"
+CAMPAIGN_NOTE="${CAMPAIGN_NOTE:-}"
 REPEATS="${REPEATS:-5}"
 TP_REPEATS="${TP_REPEATS:-10}"
 ENDPOINT="${ENDPOINT:-http://127.0.0.1:8080}"
@@ -13,11 +14,17 @@ OUT="results/$RUN"; mkdir -p "$OUT"
 {
   echo "date: $(date -u +%FT%TZ)"
   echo "git: $(git -C .. rev-parse HEAD) dirty=$(git -C .. status --porcelain | wc -l | tr -d ' ')"
-  echo "host: $(sysctl -n machdep.cpu.brand_string) $(( $(sysctl -n hw.memsize) / 1073741824 )) GiB macOS $(sw_vers -productVersion)"
-  echo "vm: $(colima version 2>/dev/null | head -1) cpu=$(colima list -j 2>/dev/null | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d.get("cpu"),d.get("memory"),d.get("runtime"))' 2>/dev/null)"
+  if command -v sysctl >/dev/null && sysctl -n machdep.cpu.brand_string >/dev/null 2>&1; then
+    echo "host: $(sysctl -n machdep.cpu.brand_string) $(( $(sysctl -n hw.memsize) / 1073741824 )) GiB macOS $(sw_vers -productVersion)"
+    echo "vm: $(colima version 2>/dev/null | head -1) cpu=$(colima list -j 2>/dev/null | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d.get("cpu"),d.get("memory"),d.get("runtime"))' 2>/dev/null)"
+  else
+    echo "host: $(lscpu | grep 'Model name' | sed 's/.*: *//') $(nproc) cores $(( $(grep MemTotal /proc/meminfo | awk '{print $2}') / 1048576 )) GiB $(. /etc/os-release; echo $PRETTY_NAME) kernel $(uname -r)"
+    echo "vm: none (native Linux host: $(curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/machine-type 2>/dev/null | sed 's|.*/||' || echo unknown))"
+  fi
   echo "docker: $(docker version --format '{{.Server.Version}} {{.Server.Os}}/{{.Server.Arch}} kernel {{.Server.KernelVersion}}')"
   echo "image: $(docker image inspect python:3.10-slim --format '{{.Id}} {{.Created}}')"
   echo "load: $(uptime)"
+  [ -n "$CAMPAIGN_NOTE" ] && echo "note: $CAMPAIGN_NOTE"
 } > "$OUT/ENV.txt"
 
 for r in $(seq 1 "$REPEATS"); do

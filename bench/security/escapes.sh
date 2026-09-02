@@ -18,7 +18,11 @@ set -uo pipefail
 ENDPOINT="${ENDPOINT:-http://127.0.0.1:8080}"
 KEY="${BOXED_API_KEY:-bench}"
 HOST_SSH="${HOST_SSH:-colima ssh --}"
-CG="${CGROUP_ROOT:-/sys/fs/cgroup/docker}"
+# cgroup v2 path of a container on the Docker host. cgroupfs driver (colima,
+# Docker Desktop): /sys/fs/cgroup/docker/<id>. systemd driver (Ubuntu + Docker
+# CE): /sys/fs/cgroup/system.slice/docker-<id>.scope. %s is the container id.
+CGPAT="${CGROUP_PATTERN:-/sys/fs/cgroup/docker/%s}"
+cg() { printf "$CGPAT" "$1"; }
 
 echo "test,threat,attempt_exit,signature,postcondition,evidence"
 
@@ -165,7 +169,7 @@ for p in kids:
 print("forked=%d %s"%(len(kids),err or "no EAGAIN"))
 print("POST:%s|forked=%d %s"%("DENIED" if err else "UNDENIED",len(kids),err or "no EAGAIN in 2000 forks"))')
   ec=$(printf '%s' "$out" | field exit_code); so=$(printf '%s' "$out" | field stdout)
-  pmax=$(hostcat "$CG/$id/pids.max"); pev=$(hostcat "$CG/$id/pids.events" | tr '\n' ' ')
+  pmax=$(hostcat "$(cg $id)/pids.max"); pev=$(hostcat "$(cg $id)/pids.events" | tr '\n' ' ')
   sig=$(printf '%s' "$so" | grep -qiE 'killed|cannot fork|resource temporarily unavailable|EAGAIN' && echo DENIED || echo UNDENIED)
   post=$(printf '%s' "$so" | sed -n 's/^POST:\([A-Z]*\)|.*/\1/p' | tail -1); ev="$(printf '%s' "$so" | sed -n 's/^POST:[A-Z]*|//p' | tail -1) host:pids.max=$pmax pids.events=$pev"
   emit fork_bomb T4 "$ec" "$sig" "${post:-ERROR}" "$ev"; rm_ "$id"
@@ -188,7 +192,7 @@ try:
 except MemoryError:
     print("POST:DENIED|MemoryError after %d MiB"%(64*len(chunks)))')
   ec=$(printf '%s' "$out" | field exit_code); so=$(printf '%s' "$out" | field stdout)
-  mmax=$(hostcat "$CG/$id/memory.max"); mev=$(hostcat "$CG/$id/memory.events" | grep -E 'oom_kill' | tr '\n' ' ')
+  mmax=$(hostcat "$(cg $id)/memory.max"); mev=$(hostcat "$(cg $id)/memory.events" | grep -E 'oom_kill' | tr '\n' ' ')
   sig=$(printf '%s' "$so" | grep -qiE 'MemoryError|killed|cannot allocate' && echo DENIED || echo UNDENIED)
   post=$(printf '%s' "$so" | sed -n 's/^POST:\([A-Z]*\)|.*/\1/p' | tail -1)
   if [[ -z "$post" ]]; then
