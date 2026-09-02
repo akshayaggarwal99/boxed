@@ -1,0 +1,15 @@
+\begin{table}[t]
+\centering
+\caption{OpenHands agent-server and Boxed (runc, hardened) on the same host type, same harness. Lifecycle medians in ms over $n$ cycles; post-condition escape verdicts, identical across 3 runs.}
+\label{tab:openhands}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+System & $n$ & create & first exec & destroy & total & denied \\
+\midrule
+OpenHands agent-server & 200 & 6485 & 35 & 1068 & \textbf{7590} & 9/12 \\
+Boxed, runc & 1000 & 202 & 84 & 68 & \textbf{354} & 12/12 \\
+\bottomrule
+\end{tabular}
+\end{table}

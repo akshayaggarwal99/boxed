@@ -1,0 +1,7 @@
+user=openhands ro=false capdrop=<no value> pids=<no value> secopt=<no value> net=bridge mem=0 nanocpus=0
+uid=10001(openhands) gid=10001(openhands) groups=10001(openhands),27(sudo)
+CapEff:	0000000000000000
+uid=0(root) gid=0(root) groups=0(root)
+boxed-rt3.us-west1-b.c.boxed-bench-2026.internal
+{"access_token":"[REDACTED: a valid-looking ya29 access token for the VM service account was returned]
+

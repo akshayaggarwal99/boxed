@@ -4,22 +4,22 @@
 \label{tab:runtimes-escapes}
 \scriptsize
 \setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}lcccl@{}}
+\begin{tabular}{@{}lcccccl@{}}
 \toprule
-Vector & runc & runsc & kata & note \\
+Vector & runc & runsc & kata & kata-aware & runc-aware & note \\
 \midrule
-\texttt{mount\_host} & D & D & D & \texttt{} \\
-\texttt{proc1\_root} & D & D & D & \texttt{} \\
-\texttt{docker\_sock} & D & D & D & \texttt{} \\
-\texttt{modprobe} & D & D & D & \texttt{} \\
-\texttt{raw\_socket} & D & D & D & \texttt{} \\
-\texttt{setns} & D & D & D & \texttt{} \\
-\texttt{rfc1918} & D & D & D & \texttt{} \\
-\texttt{imds} & D & D & D & \texttt{} \\
-\texttt{fork\_bomb} & D & D & D & \texttt{} \\
-\texttt{mem\_bomb} & D & D & D & \texttt{} \\
-\texttt{ro\_root} & D & D & D & \texttt{} \\
-\texttt{ptrace\_agent} & D & D & U & \texttt{runc: PTRACE\_ATTACH pid=7 errno=1(Operation ; runsc: PTRACE\_ATTACH pid=2 errno=1(Operation ; kata: PTRACE\_ATTACH pid=2 succeeded yama=abs} \\
+\texttt{mount\_host} & D & D & D & D & D & \texttt{} \\
+\texttt{proc1\_root} & D & D & D & D & D & \texttt{} \\
+\texttt{docker\_sock} & D & D & D & D & D & \texttt{} \\
+\texttt{modprobe} & D & D & D & D & D & \texttt{} \\
+\texttt{raw\_socket} & D & D & D & D & D & \texttt{} \\
+\texttt{setns} & D & D & D & D & D & \texttt{} \\
+\texttt{rfc1918} & D & D & D & D & D & \texttt{} \\
+\texttt{imds} & D & D & D & D & D & \texttt{} \\
+\texttt{fork\_bomb} & D & D & D & D & D & \texttt{} \\
+\texttt{mem\_bomb} & D & D & D & D & D & \texttt{} \\
+\texttt{ro\_root} & D & D & D & D & D & \texttt{} \\
+\texttt{ptrace\_agent} & D & D & U & D & D & \texttt{runc: PTRACE\_ATTACH pid=7 errno=1(Operation ; runsc: PTRACE\_ATTACH pid=2 errno=1(Operation ; kata: PTRACE\_ATTACH pid=2 succeeded yama=abs; kata-aware: PTRACE\_ATTACH pid=2 errno=1(Operation ; runc-aware: PTRACE\_ATTACH pid=7 errno=1(Operation } \\
 \bottomrule
 \end{tabular}
 \end{table}

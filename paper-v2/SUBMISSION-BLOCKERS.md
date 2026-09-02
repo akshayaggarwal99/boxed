@@ -14,7 +14,8 @@ the author.
 - [x] Runtime swap on one nested-virt host (`results/linux-{runc,runsc,kata}-2026-09`): runc 354 / gVisor 405 / Kata 7824 ms; ptrace attach on the agent succeeds under Kata (no Yama in the guest kernel); two hardening knobs cost seconds on Kata (`knobs.csv`).
 - [x] Core scaling 4/8/16 vCPU (`results/linux-{8,16}core-2026-09`): 4x cores -> 1.2x peak.
 - [x] ptrace gap closed: agent calls prctl(PR_SET_DUMPABLE,0) at startup (dbc0354). Re-verified with the probe under runc/gVisor/Kata on a nested-virt VM, 3 runs each, 12/12 everywhere; Kata evidence `errno=1 yama=absent` (`results/linux-*-2026-09-agentfix`). Local before/after with Yama off also recorded in the commit message.
-- [ ] OpenHands runtime on the same host (the remaining 'compare to a competitor' ask).
+- [x] OpenHands agent-server measured on the same host type (`results/linux-openhands-2026-09`): 7.59 s lifecycle (21x Boxed runc), 9/12 on the probe; metadata endpoint and service-account token reachable, no PID or memory limit, passwordless sudo. Token redacted from posture.txt. Consider notifying the OpenHands maintainers before publication (defaults, not a code bug, but the metadata exposure is worth a heads-up).
+- [x] Runtime-aware settings (`BOXED_ISOLATED_NETWORK`, `BOXED_CPU_QUOTA=off`): Kata lifecycle 7824 -> 2856 ms, 12/12 (`results/linux-kata-aware-2026-09`, `linux-runc-aware-2026-09`).
 
 ## Manuscript
 - [x] Firecracker/Wasm "stub" claim removed everywhere (abstract, contributions, Fig. 2, Table I, Sec. IV, README).
@@ -33,6 +34,6 @@ the author.
 ## Artifact
 - Note: `bench/.env` holds the API key (mode 600, gitignored). Delete it or rotate the key when done.
 - [x] `bench/analyze/constants.sh` regenerates LOC/binary sizes from the tree.
-- [x] Committed on `paper-v2-ieee`, tagged `v0.2.0-paper` (1 Sep), `v0.3.0-paper` (2 Sep, runtime switch + cloud campaigns), `v0.3.1-paper` (2 Sep, non-dumpable agent + Kata re-verification), pushed.
+- [x] Committed on `paper-v2-ieee`, tagged `v0.2.0-paper` (1 Sep), `v0.3.0-paper` (2 Sep, runtime switch + cloud campaigns), `v0.3.1-paper` (2 Sep, non-dumpable agent + Kata re-verification), `v0.3.2-paper` (2 Sep, runtime-aware settings + OpenHands comparison), pushed.
 - [ ] Retire `O1A/Akshay Kumar Paper 1_07-08-2026.docx`; the tex is the only manuscript.
 - [ ] IEEE PDF eXpress check on the final PDF; ORCID in the author block if the venue requires it.

@@ -1,6 +1,6 @@
 \begin{table}[t]
 \centering
-\caption{One driver, three OCI runtimes on one host (GCE \texttt{n2-standard-4} with nested virtualization). Medians in ms over $n{=}1000$ (runc), $n{=}1000$ (runsc), $n{=}80$ (kata) sequential lifecycles; substrate cost is Boxed minus raw hardened Docker under the same runtime, with a bootstrap 95\% CI. Peak is the best mean sandboxes/s over the sweeps. Denied is the post-condition escape verdict, identical across 3 probe runs for every runtime; $\to$ gives the count after the agent fix of Section~\ref{sec:runtimes}, also 3 runs.}
+\caption{One driver, three OCI runtimes on one host (GCE \texttt{n2-standard-4} with nested virtualization). Medians in ms over $n{=}1000$ (runc), $n{=}1000$ (runsc), $n{=}80$ (kata), $n{=}200$ (kata-aware), $n{=}100$ (runc-aware) sequential lifecycles; substrate cost is Boxed minus raw hardened Docker under the same runtime, with a bootstrap 95\% CI. Peak is the best mean sandboxes/s over the sweeps. Denied is the post-condition escape verdict, identical across 3 probe runs for every runtime; $\to$ gives the count after the agent fix of Section~\ref{sec:runtimes}, also 3 runs. \emph{+ cfg}: the microVM settings (internal ICC-off network, no CPU quota).}
 \label{tab:runtimes}
 \scriptsize
 \setlength{\tabcolsep}{2pt}
@@ -11,6 +11,8 @@ Runtime & stock & hardened & \textbf{Boxed} & cost (95\% CI) & peak/s & denied \
 runc & 376 & 304 & \textbf{354} & 50 (49--51) & 12.5 & 12/12 \\
 gVisor & 414 & 341 & \textbf{405} & 64 (63--65) & 9.5 & 12/12 \\
 Kata/QEMU & 2947 & 7750 & \textbf{7824} & 75 (63--89) & 0.5 & 11/12$\to$12 \\
+Kata + cfg & 2960 & 2793 & \textbf{2856} & 63 (55--75) & 1.2 & 12/12 \\
+runc + cfg & 311 & 292 & \textbf{328} & 36 (34--38) & 10.2 & 12/12 \\
 \bottomrule
 \end{tabular}
 \end{table}

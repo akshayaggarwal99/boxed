@@ -18,7 +18,10 @@ import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 plt.rcParams.update({"font.family": "serif", "font.size": 8, "axes.labelsize": 8, "legend.fontsize": 7,
                      "figure.dpi": 200, "savefig.bbox": "tight", "savefig.pad_inches": 0.02})
 
-LABEL = {"runc": "runc (container)", "runsc": "gVisor runsc", "kata": "Kata (QEMU microVM)"}
+LABEL = {"runc": "runc (container)", "runsc": "gVisor runsc", "kata": "Kata (QEMU microVM)",
+         "kata-aware": "Kata, runtime-aware config", "runc-aware": "runc, runtime-aware config"}
+def rtkey(run):  # linux-<key>-YYYY-MM -> <key>
+    return "-".join(run.split("-")[1:-2])
 RNG = np.random.default_rng(20260902)
 
 def pooled(run, name):
@@ -34,7 +37,7 @@ def main():
     runs = sys.argv[4:]
     rows, esc, macros = [], {}, {}
     for r in runs:
-        rt = r.split("-")[1]
+        rt = rtkey(r)
         run = res / r
         boxed, hard, dflt = pooled(run, "coldstart.csv"), pooled(run, "baseline_hardened.csv"), pooled(run, "baseline_default.csv")
         if boxed is None: continue
@@ -52,7 +55,7 @@ def main():
                    over=np.median(boxed["total_ms"]) - np.median(hard["total_ms"]), lo=lo, hi=hi, peak=peak, denied=denied,
                    n=len(boxed), runs=len(sorted(glob.glob(str(run / "r*/coldstart.csv")))), consistent=consistent)
         rows.append(row); esc[rt] = E
-        P = rt.capitalize()
+        P = "".join(w.capitalize() for w in rt.split("-"))
         macros[f"{P}BoxedMedian"] = f"{row['boxed']:.0f}\\,ms"; macros[f"{P}HardMedian"] = f"{row['hard']:.0f}\\,ms"
         macros[f"{P}Overhead"] = f"{row['over']:.0f}\\,ms"; macros[f"{P}OverheadCI"] = f"{lo:.0f}--{hi:.0f}\\,ms"
         macros[f"{P}Peak"] = f"{peak:.1f}"; macros[f"{P}Denied"] = str(denied)
@@ -60,7 +63,7 @@ def main():
         macros[f"{P}CostShare"] = f"{100*row['over']/row['boxed']:.0f}\\%"
     fixed = {}
     for r in runs:
-        rt = r.split("-")[1]
+        rt = rtkey(r)
         fx = sorted(glob.glob(str(res / f"{r}-agentfix" / "escapes_r*.csv")))
         if fx:
             F = [pd.read_csv(f).set_index("test")["postcondition"] for f in fx]
@@ -68,19 +71,22 @@ def main():
                 fixed[rt] = int((F[0] == "DENIED").sum())
     base = rows[0]
     for row in rows[1:]:
-        P = row["rt"].capitalize()
+        P = "".join(w.capitalize() for w in row["rt"].split("-"))
         macros[f"{P}VsRuncBoxed"] = f"{row['boxed']/base['boxed']:.1f}$\\times$"
         macros[f"{P}VsRuncHard"] = f"{row['hard']/base['hard']:.1f}$\\times$"
     macros["RuntimeN"] = str(base["n"]); macros["RuntimeRuns"] = str(base["runs"])
+    by = {r["rt"]: r for r in rows}
+    if "kata" in by and "kata-aware" in by:
+        macros["KataAwareSpeedup"] = f"{by['kata']['boxed']/by['kata-aware']['boxed']:.1f}$\\times$"
 
     # ---- summary table
     L = ["\\begin{table}[t]", "\\centering",
          "\\caption{One driver, three OCI runtimes on one host (GCE \\texttt{n2-standard-4} with nested virtualization). Medians in ms over "
          + ", ".join(f"$n{{=}}{r['n']}$ ({r['rt']})" for r in rows)
-         + " sequential lifecycles; substrate cost is Boxed minus raw hardened Docker under the same runtime, with a bootstrap 95\\% CI. Peak is the best mean sandboxes/s over the sweeps. Denied is the post-condition escape verdict, identical across 3 probe runs for every runtime; $\\to$ gives the count after the agent fix of Section~\\ref{sec:runtimes}, also 3 runs.}",
+         + " sequential lifecycles; substrate cost is Boxed minus raw hardened Docker under the same runtime, with a bootstrap 95\\% CI. Peak is the best mean sandboxes/s over the sweeps. Denied is the post-condition escape verdict, identical across 3 probe runs for every runtime; $\\to$ gives the count after the agent fix of Section~\\ref{sec:runtimes}, also 3 runs. \\emph{+ cfg}: the microVM settings (internal ICC-off network, no CPU quota).}",
          "\\label{tab:runtimes}", "\\scriptsize", "\\setlength{\\tabcolsep}{2pt}", "\\begin{tabular}{@{}lrrrrrr@{}}", "\\toprule",
          "Runtime & stock & hardened & \\textbf{Boxed} & cost (95\\% CI) & peak/s & denied \\\\", "\\midrule"]
-    SHORT = {"runc": "runc", "runsc": "gVisor", "kata": "Kata/QEMU"}
+    SHORT = {"runc": "runc", "runsc": "gVisor", "kata": "Kata/QEMU", "kata-aware": "Kata + cfg", "runc-aware": "runc + cfg"}
     for r in rows:
         L.append(f"{SHORT.get(r['rt'], r['rt'])} & {r['dflt']:.0f} & {r['hard']:.0f} & \\textbf{{{r['boxed']:.0f}}} & "
                  f"{r['over']:.0f} ({r['lo']:.0f}--{r['hi']:.0f}) & {r['peak']:.1f} & {r['denied']}/12{'' if r['consistent'] else '$^{\\dagger}$'}"
@@ -120,21 +126,23 @@ def main():
     ax.legend(frameon=False, loc="upper left"); ax.grid(True, axis="y", alpha=0.3)
     fig.savefig(fout / "runtimes.pdf"); plt.close(fig)
 
-    kn = res / runs[-1] / "knobs.csv"
-    if kn.exists():
+    kns = [res / r / "knobs.csv" for r in runs if (res / r / "knobs.csv").exists()]
+    kn = kns[0] if kns else None
+    if kn is not None:
         k = pd.read_csv(kn, comment="#").groupby("flag")["ms"].median()
         for flag, name in (("stock", "Stock"), ("netnone", "NetNone"), ("cpus1", "CpusOne"), ("all", "All"), ("tmpfs", "Tmpfs"), ("pids", "Pids")):
             if flag in k: macros[f"KataKnob{name}"] = f"{k[flag]/1000:.1f}\\,s"
     for r in rows:
-        tps = sorted(glob.glob(str(res / [x for x in runs if x.split('-')[1]==r['rt']][0] / "tp*/throughput.csv")))
+        tps = sorted(glob.glob(str(res / [x for x in runs if rtkey(x)==r['rt']][0] / "tp*/throughput.csv")))
         if tps:
             tp = pd.concat([pd.read_csv(p) for p in tps])
-            macros[f"{r['rt'].capitalize()}TPErrors"] = str(int(tp["errors"].sum())); macros[f"{r['rt'].capitalize()}TPTotal"] = str(int(tp["n"].sum()))
+            PP = "".join(w.capitalize() for w in r['rt'].split("-"))
+            macros[f"{PP}TPErrors"] = str(int(tp["errors"].sum())); macros[f"{PP}TPTotal"] = str(int(tp["n"].sum()))
             bad = tp[tp["errors"] > 0]["conc"].min()
-            macros[f"{r['rt'].capitalize()}TPFirstErrConc"] = str(int(bad)) if pd.notna(bad) else "none"
+            macros[f"{PP}TPFirstErrConc"] = str(int(bad)) if pd.notna(bad) else "none"
     # Post-fix probe runs, if present: <run>-agentfix/escapes_r*.csv
     for r in runs:
-        rt = r.split("-")[1]; P = rt.capitalize()
+        rt = rtkey(r); P = "".join(w.capitalize() for w in rt.split("-"))
         fx = sorted(glob.glob(str(res / f"{r}-agentfix" / "escapes_r*.csv")))
         if not fx: continue
         F = [pd.read_csv(f).set_index("test") for f in fx]

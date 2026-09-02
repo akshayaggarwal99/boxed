@@ -1,0 +1,13 @@
+test,threat,attempt_exit,signature,postcondition,evidence
+mount_host,T1;T2,0,DENIED,DENIED,"mounts_on_/mnt=0"
+proc1_root,T1,0,DENIED,DENIED,"proc1_root_dev_ino=37:1847296 root_dev_ino=37:1847296 pid1=tini"
+docker_sock,T2;T3,0,UNDENIED,DENIED,"sockets_found=0 api_reachable=False"
+modprobe,T2,0,DENIED,DENIED,"init_module errno=1(Operation not permitted)"
+raw_socket,T2,0,DENIED,DENIED,"errno=1(Operation not permitted)"
+setns,T2,0,DENIED,DENIED,"unshare failed: unshare: unshare failed: Operation not permitted"
+rfc1918,T3,0,DENIED,DENIED,"ifaces=eth0;lo"
+imds,T3,0,UNDENIED,UNDENIED,"ifaces=eth0;lo"
+fork_bomb,T4,0,DENIED,UNDENIED,"forked=2000 no EAGAIN in 2000 forks host:pids.max=19108 pids.events=max 0 "
+mem_bomb,T4,0,UNDENIED,UNDENIED,"exit=0 host:memory.max=max oom_kill 0  sandbox:max=max oom_kill 0"
+ro_root,T1,0,DENIED,DENIED,"/etc:absent /usr/bin:absent "
+ptrace_agent,T2;T3,0,DENIED,DENIED,"PTRACE_ATTACH pid=7 errno=1(Operation not permitted) yama=1"
