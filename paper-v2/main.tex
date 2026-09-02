@@ -58,11 +58,11 @@ akumar8@mt.iitr.ac.in}}
 
 \begin{abstract}
 Autonomous large language model (LLM) agents write, run, and revise code
-inside their reasoning loop, which puts the sandbox on the hot path of every
-task. Roll-your-own Docker is quick but usually deployed without a
-read-only root, capability drops, process caps, or egress control; hosted
+inside their reasoning loop, so the sandbox is on the hot path of every
+task. Roll-your-own Docker is quick but is usually deployed without a
+read-only root, capability drops, process caps, or egress control. Hosted
 sandbox services are hardened but move the operator's code and data to a
-third party; research virtual machine monitors isolate well but are built
+third party. Research virtual machine monitors isolate well but are built
 for a boot-once serverless model. Boxed is an open-source substrate for
 agentic code execution: a self-hosted Go control plane, a
 \BoxedAgentBinSize{} Rust in-sandbox agent that streams \texttt{stdout},
@@ -70,26 +70,25 @@ agentic code execution: a self-hosted Go control plane, a
 four lifecycle methods admit backends beyond the Docker driver that exists
 today. Measured against the Docker Engine API on the same host, image, and
 command, the control plane and agent cost \BoxedOverheadPct{} of a raw
-Docker lifecycle on a laptop and on an idle server alike, and the hardened
-configuration is faster than stock Docker defaults, because dropping the
-network costs less than setting up the bridge. Swapping the OCI
-runtime under the unchanged driver gives \RuncBoxedMedian{} per lifecycle
-with \texttt{runc}, \RunscBoxedMedian{} with gVisor, and
-\KataBoxedMedian{} with a Kata microVM, the substrate cost near constant
-across the three; a twelve-vector escape probe scored by post-conditions
-read from the host denies all twelve under \texttt{runc} and gVisor and
-eleven under Kata, whose guest kernel lacks the host policy that had been
-stopping a \texttt{ptrace} attach on the in-sandbox agent; a one-line
-change to the agent restores twelve. A driver setting that gives the
-microVM an internal, inter-container-isolated network and no CPU quota
-cuts the Kata lifecycle to \KataAwareBoxedMedian{} with all twelve still
-denied. On the same host, the OpenHands agent-server sandbox in its SDK's
-default configuration takes \OHMedian{} per lifecycle and stops
-\OHDenied{} of the twelve vectors, leaving the cloud metadata endpoint and
-the instance's service-account token reachable. Single-host throughput is
-bound by the Docker daemon: four times the cores gives \ScaleRatioMax{}
-the sandboxes per second. Boxed, the harness, and every raw trace are
-MIT-licensed.
+Docker lifecycle, on a laptop and on an idle server, and the hardened
+configuration is faster than stock Docker defaults because dropping the
+network costs less than setting up the bridge. With the OCI runtime swapped
+under the unchanged driver, a lifecycle takes \RuncBoxedMedian{} with
+\texttt{runc}, \RunscBoxedMedian{} with gVisor, and \KataBoxedMedian{}
+with a Kata microVM, and the substrate's own cost stays close to constant.
+A twelve-vector escape probe scored by post-conditions read from the host
+denies all twelve under \texttt{runc} and gVisor and eleven under Kata,
+whose guest kernel lacks the host policy that had been stopping a
+\texttt{ptrace} attach on the in-sandbox agent; a one-line change to the
+agent brings Kata to twelve. Giving the microVM an internal,
+inter-container-isolated network and no CPU quota cuts its lifecycle to
+\KataAwareBoxedMedian{} with all twelve still denied. On the same host,
+the OpenHands agent-server sandbox in its SDK's default configuration takes
+\OHMedian{} per lifecycle and stops \OHDenied{} of the twelve vectors; the
+cloud metadata endpoint, and with it the instance's service-account token,
+is reachable from the workload. Throughput on one host is bound by the
+Docker daemon: four times the cores gives \ScaleRatioMax{} the sandboxes
+per second. Boxed, the harness, and every raw trace are MIT-licensed.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -200,14 +199,14 @@ that escape probes commonly use, on the same attempts: signature matching
 misreports as failures exactly the vectors where enforcement kills or
 silences the process.
 \item The same driver, agent, and harness under three OCI runtimes on one
-host (\texttt{runc}, gVisor, Kata). This measures the backend switch the
+host (\texttt{runc}, gVisor, Kata), which measures the backend switch the
 interface was designed for, exposes and closes a \texttt{ptrace} gap that
 the container runtime had been masking, and shows that two hardening
-settings free under \texttt{runc} cost seconds under a microVM, with the
-driver setting that removes that cost.
+settings free under \texttt{runc} cost seconds under a microVM, together
+with the driver setting that removes that cost.
 \item The OpenHands agent-server sandbox measured with the same harness on
-the same host, and a core-scaling sweep on 4, 8, and 16 vCPUs showing that
-single-host throughput is bound by the daemon.
+the same host, and a core-scaling sweep on 4, 8, and 16 vCPUs: single-host
+throughput is bound by the daemon.
 \end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -217,15 +216,15 @@ single-host throughput is bound by the daemon.
 Linux containers, built on namespaces, cgroups, and seccomp, underpin nearly
 every development sandbox. They start fast when images are warm
 (\BaseDefCreateMedian{} for a stock \texttt{docker run} on our host,
-Table~\ref{tab:lifecycle}), which is why they dominate workloads that
-create and destroy environments often; the cost is a shared host kernel.
+Table~\ref{tab:lifecycle}), so they dominate workloads that create and
+destroy environments often; the cost is a shared host kernel.
 CVE-2019-5736~\cite{runc-cve} is the standard reminder that one bug in
 \texttt{runc} turns a container into the host. Lin \emph{et
 al.}~\cite{container-measure} ran 88 of 223 collected exploits inside a
 default-configured container: 50 succeeded, capabilities, seccomp, and MAC
 stopped more privilege escalations than namespaces and cgroups did, and 11
-exploits still broke isolation, which is why the hardening in
-Section~\ref{sec:hardening} starts with the capability drop. Hardened
+exploits still broke isolation. That ordering is the reason the hardening
+in Section~\ref{sec:hardening} starts with the capability drop. Hardened
 runtimes such as gVisor~\cite{gvisor} put a userspace kernel between the
 workload and the host; Young \emph{et al.}~\cite{gvisor-cost} measure its
 system-call cost at 2.8$\times$ native in its fastest mode, 9$\times$ when
@@ -481,8 +480,8 @@ whose only job is to keep the namespace alive. \texttt{Connect} launches
 \texttt{boxed-agent} as a Docker \texttt{exec}, and the attached stream
 carries JSON-RPC. This matters for security: the agent is a child of the
 container's init, so any workload process in the sandbox's PID namespace can
-see it, which is why the \texttt{ptrace} vector in
-Section~\ref{sec:escape} targets the agent. Under a microVM backend the
+see it, and the \texttt{ptrace} vector in Section~\ref{sec:escape}
+targets the agent for that reason. Under a microVM backend the
 agent would be the guest init and talk over \texttt{vsock}.
 
 \subsection{Resource and network model}\label{sec:hardening}
@@ -550,8 +549,8 @@ configurations: of the \BaseHardTailN{} slowest raw-hardened lifecycles,
 \BaseHardTailClusterMax{} fall in a single run, and of the
 \BaseDefTailN{} slowest stock lifecycles, \BaseDefTailClusterMax{} fall in
 another, almost all of them in the create phase. Those are bursts of host
-activity landing on whichever configuration was running, so Boxed's smaller
-p95 is not an advantage of Boxed. The difference of \BoxedOverheadMedian{} (95\%~CI on the
+activity that landed on whichever configuration was running at the time, so
+Boxed's smaller p95 is host timing. The difference of \BoxedOverheadMedian{} (95\%~CI on the
 difference of medians \BoxedOverheadCI; \BoxedOverheadPct{} of the raw cost)
 is what the HTTP control plane, the agent launch over \texttt{exec} attach,
 and the JSON-RPC exec path add together: \BoxedOverheadCreate{} on create,
@@ -694,8 +693,8 @@ trace passed \LinuxBoxedAgentPassCount{} of \LinuxBoxedAgentN{} executions
 with model inference at \LinuxBoxedAgentLLMShare{} of wall-clock, and
 sandbox create in the agent loop had a median of
 \LinuxBoxedAgentCreateMedian{} against \LinuxBoxedColdCreateMedian{} in
-the tight loop on the same host: on a quiet host the laptop's gap is gone,
-as the load explanation predicted.
+the tight loop on the same host. On a quiet host the gap seen on the laptop
+disappears, as it should if load caused it.
 
 The substrate's share of the raw cost is \LinuxBoxedOverheadPct{} here and
 \BoxedOverheadPct{} on the laptop, the hardened configuration is faster
@@ -721,8 +720,8 @@ Boxed's lifecycle is \RuncBoxedMedian{} under \texttt{runc},
 \KataBoxedMedian{} under Kata (\KataVsRuncBoxed). The substrate cost is
 \RuncOverhead{}, \RunscOverhead{}, and \KataOverhead{}: close to a
 constant, so it is \RuncCostShare{} of a container lifecycle,
-\RunscCostShare{} of a gVisor one, and \KataCostShare{} of a microVM one. The boundary sets the price; the control
-plane and agent do not. Kata's raw stock lifecycle is \KataKnobStock{} on this host and its
+\RunscCostShare{} of a gVisor one, and \KataCostShare{} of a microVM one. Most of a lifecycle is the boundary itself; the control plane and agent
+add a small, fixed amount on top. Kata's raw stock lifecycle is \KataKnobStock{} on this host and its
 hardened one \KataHardMedian{}; isolating the flags (\texttt{knobs.csv},
 three runs each), network \texttt{none} takes a bare Kata boot from
 \KataKnobStock{} to \KataKnobNetNone{} and the one-core CPU quota to
@@ -744,10 +743,10 @@ order (\RuncPeak{}, \RunscPeak{}, \KataPeak{} sandboxes/s,
 
 \input{tables/runtimes}
 
-The escape probe under the three runtimes is the more instructive result.
-All twelve vectors are denied under \texttt{runc} and gVisor, and eleven
+The escape probe is where the runtimes differ most. All twelve vectors are
+denied under \texttt{runc} and gVisor, and eleven
 under Kata, identical across three runs. Three of the verdicts depend on
-the probe reading the host rather than the sandbox, because a runtime with
+the probe reading the host instead of the sandbox, because a runtime with
 its own kernel changes what an attempt looks like from inside. Under gVisor
 and Kata, \texttt{unshare} succeeds, but the new namespace's inode is
 absent from the host's \texttt{/proc}: it lives inside the sandbox's
@@ -760,8 +759,8 @@ The one undenied vector is \texttt{PTRACE\_ATTACH} on the agent under
 Kata. Under \texttt{runc} that attach was denied by the host kernel's Yama
 scope; Kata's guest kernel has no Yama, the workload and the agent both run
 as root, and a same-uid attach needs no capability, so the attach succeeds.
-The denial in Section~\ref{sec:escape} was the host's policy, not Boxed's,
-and the stronger boundary removed it. The fix is one line: the agent now calls
+Under \texttt{runc} the host's policy had been doing the work, and the
+stronger boundary took it away. The fix is one line: the agent now calls
 \texttt{prctl(PR\_SET\_DUMPABLE, 0)} at startup, after which the kernel's
 own access check refuses a tracer without \texttt{CAP\_SYS\_PTRACE},
 which the driver drops. Re-running the probe with that agent on the same
@@ -782,10 +781,10 @@ API (Table~\ref{tab:openhands}). The lifecycle is \OHMedian{}
 (\OHVsBoxed{} Boxed under \texttt{runc}), almost all of it the
 agent-server's own startup, which includes a VS~Code server; OpenHands
 creates one sandbox per session and runs many actions in it, so that cost
-is paid per session where Boxed pays per task. The twelve vectors matter
-more. In the SDK's default configuration the sandbox runs as an
-unprivileged user, which is why the root-filesystem write fails, but it has
-no PID limit (\OHEvForkBomb), no memory limit, and a bridge network from
+is paid per session where Boxed pays per task. The probe results are the
+larger difference. In the SDK's default configuration the sandbox runs as an
+unprivileged user, so the root-filesystem write fails, but it has no PID
+limit (\OHEvForkBomb), no memory limit, and a bridge network from
 which the cloud metadata endpoint answered: the probe read the instance's
 hostname and a service-account access token from inside the sandbox. The
 unprivileged user also has passwordless \texttt{sudo}. These are the SDK's defaults; OpenHands documents custom sandbox images
@@ -847,14 +846,14 @@ Section~\ref{sec:runtimes} is the closest this paper comes to testing the
 interface claim. The control plane and agent did not change and did not
 need to; a one-field change moved the substrate from a shared kernel to a
 user-space kernel to a guest kernel, and its own cost stayed flat. Two
-things did change. The hardening had been tuned against \texttt{runc}, and
-two of its settings were expensive under Kata until the driver gained the
-internal network and the quota switch (\KataAwareSpeedup{} on the
-lifecycle, nothing given up on the probe). And the agent's placement as a
-peer process, flagged in Section~\ref{sec:impl}, became a real
-\texttt{ptrace} exposure once the host kernel's Yama policy was no longer
-underneath it; the stronger boundary did not create that gap, it removed
-the policy that had been masking it.
+things did have to change. The hardening had been tuned against
+\texttt{runc}, and two of its settings were expensive under Kata until the
+driver gained the internal network and the quota switch
+(\KataAwareSpeedup{} on the lifecycle, with the probe results unchanged).
+And the agent's placement as a peer process, flagged in
+Section~\ref{sec:impl}, became a real \texttt{ptrace} exposure once the
+host kernel's Yama policy was no longer underneath it: the stronger
+boundary exposed a gap that the host's policy had been masking.
 
 \subsection{Pool-based sandbox reuse}
 The driver creates a fresh container per request, which guarantees a clean
