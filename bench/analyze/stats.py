@@ -179,7 +179,7 @@ def main():
         m["BoxedEscapeConsistent"] = "identical" if consistent else "NOT identical"
         S = ["\\begin{table*}[t]", "\\centering",
              "\\caption{Escape probe on the hardened Docker driver, " + m["BoxedEscapeTotal"] + " vectors, " + m["BoxedEscapeRuns"] +
-             " independent runs (verdicts " + m["BoxedEscapeConsistent"] + " across runs). \\emph{Signature} is the v1 classifier (grep for a denial string in captured output); "
+             " independent runs (verdicts " + m["BoxedEscapeConsistent"] + " across runs). \\emph{Signature} is signature matching (grep for a denial string in captured output); "
              "\\emph{Post-condition} checks state after the attempt, on the host where possible. The paper reports the post-condition column.}",
              f"\\label{{tab:escape{suffix}}}", "\\scriptsize", "\\setlength{\\tabcolsep}{4pt}",
              "\\begin{tabular}{@{}lllllp{0.42\\textwidth}@{}}", "\\toprule",
