@@ -17,7 +17,7 @@
 set -uo pipefail
 ENDPOINT="${ENDPOINT:-http://127.0.0.1:8080}"
 KEY="${BOXED_API_KEY:-bench}"
-HOST_SSH="${HOST_SSH:-colima ssh --}"
+HOST_SSH="${HOST_SSH-colima ssh --}"   # unset -> colima; empty string -> local reads
 # cgroup v2 path of a container on the Docker host. cgroupfs driver (colima,
 # Docker Desktop): /sys/fs/cgroup/docker/<id>. systemd driver (Ubuntu + Docker
 # CE): /sys/fs/cgroup/system.slice/docker-<id>.scope. %s is the container id.
