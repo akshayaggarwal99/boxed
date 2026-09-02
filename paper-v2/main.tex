@@ -23,6 +23,8 @@
 % Numeric macros produced by bench/analyze/stats.py from the campaign CSVs.
 % Every performance and security number in this paper expands from this file.
 \input{tables/numbers}
+% Same macros with a Linux prefix, from the native-host campaign.
+\input{tables/numbers-linux}
 % Implementation constants (binary sizes, LOC, protocol caps) with provenance.
 \input{tables/constants}
 
@@ -802,6 +804,30 @@ reported 20 of 20 self-authored tasks passing, is invalid because the agent
 of that release returned exit status zero regardless of outcome; it is
 retained in the legacy results directory and is not reported here.
 \fi
+
+\subsection{The same campaign on a native Linux host}\label{sec:linux}
+To separate the cost of the virtual machine from the cost of the substrate,
+the whole campaign was repeated on a Google Compute Engine
+\texttt{n2-standard-4} (4 vCPUs, 16\,GB, Ubuntu 24.04, Docker Engine 29.7,
+kernel 6.17, systemd cgroup driver) with nothing else running on the host.
+Table~\ref{tab:lifecycle-linux} gives the lifecycle result. Boxed's median
+lifecycle is \LinuxBoxedColdMedian{} against \LinuxBaseHardMedian{} for raw
+hardened Docker, a substrate cost of \LinuxBoxedOverheadMedian{} (95\%~CI
+\LinuxBoxedOverheadCI; \LinuxBoxedOverheadPct{} of the raw cost), and the
+hardened configuration is \LinuxHardeningDeltaMedian{}
+\LinuxHardeningDeltaSign{} than stock. Throughput peaks at
+\LinuxBoxedPeakRPS{}~sandboxes/s (\LinuxBoxedPeakCI) at
+$c{=}\LinuxBoxedPeakConc$ with \LinuxBoxedTPErrors{} errors. The escape
+probe denies \LinuxBoxedEscapeDenied{} of \LinuxBoxedEscapeTotal{} vectors,
+\LinuxBoxedEscapeConsistent{} across \LinuxBoxedEscapeRuns{} runs, with the
+signature method disagreeing on \LinuxBoxedEscapeSigDisagree{}. The agent
+trace passed \LinuxBoxedAgentPassCount{} of \LinuxBoxedAgentN{} executions;
+model inference took \LinuxBoxedAgentLLMShare{} of wall-clock, and sandbox
+create had a median of \LinuxBoxedAgentCreateMedian{} against
+\LinuxBoxedColdCreateMedian{} in the tight loop on the same host.
+%% LINUX-COMPARISON-SENTENCE
+
+\input{tables/lifecycle-linux}
 
 \subsection{Threats to validity}
 All measurements come from one laptop, and Docker ran inside a virtual

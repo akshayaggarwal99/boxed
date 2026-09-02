@@ -79,13 +79,18 @@ def latency_block(prefix, paths, m):
 
 
 def main():
-    if len(sys.argv) < 3:
+    args = [a for a in sys.argv[1:]]
+    prefix = ""
+    if "--prefix" in args:
+        i = args.index("--prefix"); prefix = args[i + 1]; del args[i:i + 2]
+    if len(args) < 2:
         print(__doc__, file=sys.stderr)
         sys.exit(2)
-    run = Path(sys.argv[1])
-    out = Path(sys.argv[2])
-    legacy = Path(sys.argv[3]) if len(sys.argv) > 3 else None
+    run = Path(args[0])
+    out = Path(args[1])
+    legacy = Path(args[2]) if len(args) > 2 else None
     out.mkdir(parents=True, exist_ok=True)
+    suffix = f"-{prefix.lower()}" if prefix else ""
     m: dict[str, str] = {}
 
     # ---------------------------------------------------------------- cold start
@@ -110,13 +115,13 @@ def main():
     L = ["\\begin{table}[t]", "\\centering",
          "\\caption{Lifecycle latency, medians over " + m["BoxedColdRuns"] + " runs $\\times$ " + m["BoxedColdN"] +
          " sequential create$\\rightarrow$exec$\\rightarrow$destroy cycles, same host, image, and command. Raw Docker rows call the Engine API directly with no control plane and no agent.}",
-         "\\label{tab:lifecycle}", "\\footnotesize", "\\begin{tabular}{@{}lrrrrr@{}}", "\\toprule",
+         f"\\label{{tab:lifecycle{suffix}}}", "\\footnotesize", "\\begin{tabular}{@{}lrrrrr@{}}", "\\toprule",
          "Configuration & create & exec & destroy & total & p95 \\\\", "\\midrule"]
     for name, df in rows:
         L.append(f"{name} & {np.median(df['create_ms']):.0f} & {np.median(df['first_exec_ms']):.0f} & "
                  f"{np.median(df['destroy_ms']):.0f} & \\textbf{{{np.median(df['total_ms']):.0f}}} & {np.percentile(df['total_ms'],95):.0f} \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\\\[2pt]{\\footnotesize All values in ms.}", "\\end{table}"]
-    (out / "lifecycle.tex").write_text("\n".join(L) + "\n")
+    (out / f"lifecycle{suffix}.tex").write_text("\n".join(L) + "\n")
 
     # ---------------------------------------------------------------- throughput
     tps = sorted(glob.glob(str(run / "tp*/throughput.csv")))
@@ -138,14 +143,14 @@ def main():
              "\\caption{Throughput sweep: " + m["BoxedTPPerLevel"] + " create$\\rightarrow$destroy lifecycles per level, " +
              m["BoxedTPRuns"] + " independent sweeps. Mean sandboxes/s with 95\\% confidence interval (Student's $t$) and the range across sweeps. " +
              m["BoxedTPErrors"] + " errors in " + str(int(tp["n"].sum())) + " lifecycles.}",
-             "\\label{tab:throughput}", "\\footnotesize", "\\begin{tabular}{@{}rrrr@{}}", "\\toprule",
+             f"\\label{{tab:throughput{suffix}}}", "\\footnotesize", "\\begin{tabular}{@{}rrrr@{}}", "\\toprule",
              "Concurrency $c$ & Sandboxes/s (mean) & 95\\% CI & Range \\\\", "\\midrule"]
         for c, r in summ.iterrows():
             b = "\\textbf" if c == best else ""
             T.append(f"{int(c)} & {b}{{{r['mean']:.2f}}} & $\\pm${r['ci']:.2f} & {r['min']:.2f}--{r['max']:.2f} \\\\")
         T += ["\\bottomrule", "\\end{tabular}", "\\end{table}"]
-        (out / "throughput.tex").write_text("\n".join(T) + "\n")
-        summ.to_csv(out / "throughput_summary.csv")
+        (out / f"throughput{suffix}.tex").write_text("\n".join(T) + "\n")
+        summ.to_csv(out / f"throughput_summary{suffix}.csv")
 
     # ---------------------------------------------------------------- overhead
     ov = run / "overhead.csv"
@@ -176,7 +181,7 @@ def main():
              "\\caption{Escape probe on the hardened Docker driver, " + m["BoxedEscapeTotal"] + " vectors, " + m["BoxedEscapeRuns"] +
              " independent runs (verdicts " + m["BoxedEscapeConsistent"] + " across runs). \\emph{Signature} is the v1 classifier (grep for a denial string in captured output); "
              "\\emph{Post-condition} checks state after the attempt, on the host where possible. The paper reports the post-condition column.}",
-             "\\label{tab:escape}", "\\scriptsize", "\\setlength{\\tabcolsep}{4pt}",
+             f"\\label{{tab:escape{suffix}}}", "\\scriptsize", "\\setlength{\\tabcolsep}{4pt}",
              "\\begin{tabular}{@{}lllllp{0.42\\textwidth}@{}}", "\\toprule",
              "Vector & Threat & Exit & Signature & Post-condition & Evidence \\\\", "\\midrule"]
         for t, r in first.iterrows():
@@ -185,7 +190,7 @@ def main():
             thr = str(r["threat"]).replace(";", ", ")
             S.append(f"\\texttt{{{t.replace('_','\\_')}}} & {thr} & {ex} & {r['signature'].lower()} & \\textbf{{{r['postcondition'].lower()}}} & \\texttt{{{ev}}} \\\\")
         S += ["\\bottomrule", "\\end{tabular}", "\\end{table*}"]
-        (out / "escapes.tex").write_text("\n".join(S) + "\n")
+        (out / f"escapes{suffix}.tex").write_text("\n".join(S) + "\n")
 
     # ---------------------------------------------------------------- agent trace
     ag = run / "agent_trace.csv"
@@ -240,9 +245,9 @@ def main():
     lines = ["% AUTO-GENERATED by bench/analyze/stats.py -- do not edit by hand.",
              f"% source: {run}"]
     for k, v in m.items():
-        lines.append(f"\\newcommand{{\\{k}}}{{{v}\\xspace}}")
-    (out / "numbers.tex").write_text("\n".join(lines) + "\n")
-    print(f"wrote {out/'numbers.tex'} ({len(m)} macros) + lifecycle/throughput/escapes tables", file=sys.stderr)
+        lines.append(f"\\newcommand{{\\{prefix}{k}}}{{{v}\\xspace}}")
+    (out / f"numbers{suffix}.tex").write_text("\n".join(lines) + "\n")
+    print(f"wrote {out}/numbers{suffix}.tex ({len(m)} macros) + lifecycle/throughput/escapes tables", file=sys.stderr)
 
 
 if __name__ == "__main__":

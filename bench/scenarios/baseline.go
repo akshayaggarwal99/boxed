@@ -34,8 +34,9 @@ import (
 const baselineImage = "python:3.10-slim"
 
 func baselineHostConfig(mode string) *container.HostConfig {
+	rt := os.Getenv("BOXED_DOCKER_RUNTIME") // same runtime switch the driver honours
 	if mode != "hardened" {
-		return &container.HostConfig{}
+		return &container.HostConfig{Runtime: rt}
 	}
 	pids := int64(256)
 	return &container.HostConfig{
@@ -53,6 +54,7 @@ func baselineHostConfig(mode string) *container.HostConfig {
 			{Type: mount.TypeTmpfs, Target: "/workspace", TmpfsOptions: &mount.TmpfsOptions{Mode: 01777}},
 		},
 		NetworkMode: "none",
+		Runtime:     rt,
 	}
 }
 

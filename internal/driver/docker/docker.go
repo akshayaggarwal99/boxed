@@ -31,6 +31,13 @@ type DockerDriver struct {
 	cli *client.Client
 	// hostAgentPath is the path to the compiled agent binary on the host
 	hostAgentPath string
+	// runtime is the OCI runtime Docker uses for every sandbox ("" = Docker's
+	// default, normally runc). Set BOXED_DOCKER_RUNTIME=runsc for gVisor or
+	// =kata for Kata Containers, provided the runtime is registered with the
+	// Docker daemon. The rest of the driver, the agent, and the control plane
+	// are unchanged; this is the runtime-level backend switch the paper
+	// measures.
+	runtime string
 }
 
 // New creates a new DockerDriver.
@@ -54,9 +61,18 @@ func New(cfg map[string]any) (driver.Driver, error) {
 		agentPath = absPath
 	}
 
+	runtime := os.Getenv("BOXED_DOCKER_RUNTIME")
+	if r, ok := cfg["runtime"].(string); ok && r != "" {
+		runtime = r
+	}
+	if runtime != "" {
+		log.Info().Str("runtime", runtime).Msg("Docker driver using non-default OCI runtime")
+	}
+
 	return &DockerDriver{
 		cli:           cli,
 		hostAgentPath: agentPath,
+		runtime:       runtime,
 	}, nil
 }
 
@@ -157,6 +173,7 @@ func (d *DockerDriver) Create(ctx context.Context, cfg driver.SandboxConfig) (st
 		// Reject network-enabled configurations until a per-sandbox egress policy
 		// is implemented; this runtime always uses an isolated network namespace.
 		NetworkMode: "none",
+		Runtime:     d.runtime,
 	}
 
 	// Environment variables

@@ -24,6 +24,7 @@ OUT="results/$RUN"; mkdir -p "$OUT"
   echo "docker: $(docker version --format '{{.Server.Version}} {{.Server.Os}}/{{.Server.Arch}} kernel {{.Server.KernelVersion}}')"
   echo "image: $(docker image inspect python:3.10-slim --format '{{.Id}} {{.Created}}')"
   echo "load: $(uptime)"
+  echo "runtime: ${BOXED_DOCKER_RUNTIME:-default(runc)} $(docker info --format '{{.DefaultRuntime}} available={{range $k,$v := .Runtimes}}{{$k}} {{end}}' 2>/dev/null)"
   [ -n "$CAMPAIGN_NOTE" ] && echo "note: $CAMPAIGN_NOTE"
 } > "$OUT/ENV.txt"
 
