@@ -39,9 +39,17 @@ func baselineHostConfig(mode string) *container.HostConfig {
 		return &container.HostConfig{Runtime: rt}
 	}
 	pids := int64(256)
+	var nano int64 = 1e9
+	if os.Getenv("BOXED_CPU_QUOTA") == "off" {
+		nano = 0
+	}
+	net := "none"
+	if n := os.Getenv("BOXED_ISOLATED_NETWORK"); n != "" {
+		net = n
+	}
 	return &container.HostConfig{
 		Resources: container.Resources{
-			NanoCPUs:  1e9,
+			NanoCPUs:  nano,
 			Memory:    512 * 1024 * 1024,
 			PidsLimit: &pids,
 		},
@@ -53,7 +61,7 @@ func baselineHostConfig(mode string) *container.HostConfig {
 			{Type: mount.TypeTmpfs, Target: "/output", TmpfsOptions: &mount.TmpfsOptions{Mode: 01777}},
 			{Type: mount.TypeTmpfs, Target: "/workspace", TmpfsOptions: &mount.TmpfsOptions{Mode: 01777}},
 		},
-		NetworkMode: "none",
+		NetworkMode: container.NetworkMode(net),
 		Runtime:     rt,
 	}
 }

@@ -38,6 +38,17 @@ type DockerDriver struct {
 	// are unchanged; this is the runtime-level backend switch the paper
 	// measures.
 	runtime string
+	// networkMode is "none" (default) or the name of an operator-created
+	// Docker network that New() has verified is internal (no route off the
+	// host) with inter-container traffic disabled. BOXED_ISOLATED_NETWORK.
+	// Motivation: a microVM runtime pays seconds for "none" (Section VI-H of
+	// the paper); an internal, ICC-off bridge keeps egress and co-tenant
+	// isolation while letting the guest boot with an interface.
+	networkMode string
+	// cpuQuota=false skips NanoCPUs. BOXED_CPU_QUOTA=off. A CPU quota on a
+	// microVM runtime throttles the guest's boot; memory and PID limits still
+	// apply.
+	cpuQuota bool
 }
 
 // New creates a new DockerDriver.
@@ -69,10 +80,32 @@ func New(cfg map[string]any) (driver.Driver, error) {
 		log.Info().Str("runtime", runtime).Msg("Docker driver using non-default OCI runtime")
 	}
 
+	networkMode := "none"
+	if n := os.Getenv("BOXED_ISOLATED_NETWORK"); n != "" {
+		nw, err := cli.NetworkInspect(context.Background(), n, types.NetworkInspectOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("BOXED_ISOLATED_NETWORK=%q: %w", n, err)
+		}
+		if !nw.Internal {
+			return nil, fmt.Errorf("BOXED_ISOLATED_NETWORK=%q is not an internal network; refusing to start", n)
+		}
+		if nw.Options["com.docker.network.bridge.enable_icc"] != "false" {
+			return nil, fmt.Errorf("BOXED_ISOLATED_NETWORK=%q allows inter-container traffic (enable_icc); refusing to start", n)
+		}
+		networkMode = n
+		log.Info().Str("network", n).Msg("Docker driver using verified internal, ICC-off network instead of none")
+	}
+	cpuQuota := os.Getenv("BOXED_CPU_QUOTA") != "off"
+	if !cpuQuota {
+		log.Info().Msg("Docker driver not applying a CPU quota (BOXED_CPU_QUOTA=off)")
+	}
+
 	return &DockerDriver{
 		cli:           cli,
 		hostAgentPath: agentPath,
 		runtime:       runtime,
+		networkMode:   networkMode,
+		cpuQuota:      cpuQuota,
 	}, nil
 }
 
@@ -132,6 +165,9 @@ func (d *DockerDriver) Create(ctx context.Context, cfg driver.SandboxConfig) (st
 	// Prepare resources
 	// NanoCPUs: 1.0 = 1e9.
 	nanoCPUs := int64(cfg.CPUCores * 1e9)
+	if !d.cpuQuota {
+		nanoCPUs = 0
+	}
 	memoryBytes := cfg.MemoryMB * 1024 * 1024
 	pidsLimit := defaultPidsLimit
 
@@ -172,7 +208,7 @@ func (d *DockerDriver) Create(ctx context.Context, cfg driver.SandboxConfig) (st
 		},
 		// Reject network-enabled configurations until a per-sandbox egress policy
 		// is implemented; this runtime always uses an isolated network namespace.
-		NetworkMode: "none",
+		NetworkMode: container.NetworkMode(d.networkMode),
 		Runtime:     d.runtime,
 	}
 
