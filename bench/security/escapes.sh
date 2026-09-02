@@ -98,7 +98,9 @@ buf=ctypes.create_string_buffer(b"\x7fELF"+b"\0"*60)
 r=libc.syscall(NR,buf,ctypes.c_ulong(64),b"")
 e=ctypes.get_errno()
 print("rc=%d errno=%d %s"%(r,e,os.strerror(e)))
-print("POST:%s|init_module errno=%d(%s)"%("DENIED" if e==1 else "UNDENIED",e,os.strerror(e)))')
+# EPERM: capability absent. ENOSYS: the kernel the sandbox sees has no module
+# loading at all (a guest kernel built without it), which is also a denial.
+print("POST:%s|init_module errno=%d(%s)"%("DENIED" if e in (1,38) else "UNDENIED",e,os.strerror(e)))')
   ec=$(printf '%s' "$out" | field exit_code); so=$(printf '%s' "$out" | field stdout)
   sig=$(printf '%s' "$so" | grep -qiE 'not found|permission denied|operation not permitted|denied' && echo DENIED || echo UNDENIED)
   post=$(printf '%s' "$so" | sed -n 's/^POST:\([A-Z]*\)|.*/\1/p' | tail -1); ev=$(printf '%s' "$so" | sed -n 's/^POST:[A-Z]*|//p' | tail -1)
@@ -253,7 +255,8 @@ for d in glob.glob("/proc/[0-9]*"):
     try:
         if open(d+"/comm").read().strip()=="boxed-agent": target=int(d.split("/")[-1]); break
     except Exception: pass
-scope=open("/proc/sys/kernel/yama/ptrace_scope").read().strip()
+try: scope=open("/proc/sys/kernel/yama/ptrace_scope").read().strip()
+except Exception: scope="absent"
 if target is None:
     print("POST:ERROR|boxed-agent not visible"); raise SystemExit(0)
 r=libc.ptrace(16,target,0,0); e=ctypes.get_errno()
