@@ -21,12 +21,11 @@ Boxed is an open-source tool that gives you all three. You run it yourself, so y
 
 Everything is free and open source, including the code, the test tools, and all the raw measurement data: https://github.com/akshayaggarwal99/boxed
 
-**A few questions before I send this anywhere:**
+**One thing before we go ahead:**
 
-1. What is the process and how long does it take?
-2. Are there any fees?
-3. Which journal or conference is this for, and is it indexed?
-4. If you publish it, can I still submit it to an IEEE conference later? IEEE does not accept papers that have already been published elsewhere, so I need to be sure before going ahead.
+I am targeting IEEE for this paper. Can you place it with an IEEE conference or journal? If yes, please let me know which one, the timeline, and any fees.
+
+If it is not IEEE, I would rather hold the paper back, since IEEE does not accept work that has already been published elsewhere.
 
 Thanks,
 Akshay Kumar
