@@ -37,14 +37,24 @@ the author.
   as-is (see research/paper-writing standard). The 2 Sep coherence pass removed every reference
   to earlier versions of the paper, the legacy traces, the pre-hardening driver, the BLOCKED
   branch, and the rhetorical tags; the paper now reads as one submission.
-- [x] Human-prose pass done 1 Sep 2026 (humanizer): antithesis closers, counted signposts, -ing tails, and padding triads removed; body now 8.6 pages. Still run Turnitin before submission.
-- [x] Body is exactly 9 pages, references on page 10 (IC2E 2026 rule). Re-check against the 2027 CFP when it appears.
+- [x] Human-prose pass done 1 Sep 2026 (humanizer): antithesis closers, counted signposts, -ing tails, and padding triads removed; body now 8.6 pages.
+- [x] Turnitin run: 0% AI detected. Note that no detector is evidence of authorship either way; it
+  clears the plagiarism check, it does not close the retype item above.
+- [x] Page limit checked against the IC2E 2026 CFP (3 Sep): review version is 9 double-column pages
+  excluding references, camera-ready is 12 pages including everything. Body now ends on page 9 with
+  references starting there, so the paper is inside both. Re-check when the 2027 CFP appears.
+- [ ] VENUE: IC2E 2026 is closed. Abstracts were due 8 May 2026, papers 15 May, camera-ready 31 Aug;
+  the conference runs 13-15 Oct 2026 in Santa Clara. The next IEEE window is IC2E 2027 and its CFP is
+  not published yet (2026's appeared around January). Either wait for it or pick another venue.
 
 ## Artifact
 - Note: `bench/.env` holds the API key (mode 600, gitignored). Delete it or rotate the key when done.
 - [x] `bench/analyze/constants.sh` regenerates LOC/binary sizes from the tree.
 - [x] Committed on `paper-v2-ieee`, tagged `v0.2.0-paper` (1 Sep), `v0.3.0-paper` (2 Sep, runtime switch + cloud campaigns), `v0.3.1-paper` (2 Sep, non-dumpable agent + Kata re-verification), `v0.3.2-paper` (2 Sep, runtime-aware settings + OpenHands comparison), pushed.
-- [ ] Retire `O1A/Akshay Kumar Paper 1_07-08-2026.docx`; the tex is the only manuscript.
+- [~] Retire the stale manuscripts; the tex is the only one. `paper/Boxed.docx` and
+  `paper-v2/Boxed-IEEE.docx` moved to Trash 3 Sep. `O1A/00-Plan/Akshay Kumar Paper 1_07-08-2026.docx`
+  (the copy carrying reviewer comments) still needs the author to move it; it sits outside the repo.
+  Rescue anything worth keeping from its comments first.
 - [ ] IEEE PDF eXpress check on the final PDF; ORCID in the author block if the venue requires it.
 - [x] Type 3 fonts removed (3 Sep). matplotlib defaults to `pdf.fonttype: 3`; seven of eight
   figures embedded Type 3 DejaVuSerif and PDF eXpress rejects it. `pdf.fonttype`/`ps.fonttype`
