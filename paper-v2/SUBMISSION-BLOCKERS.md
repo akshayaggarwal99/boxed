@@ -27,7 +27,16 @@ the author.
 - [x] Conflict-of-interest section added.
 - [x] Threats to validity names the T3 gap, the VM, the non-quiesced host, and the create->destroy throughput definition.
 - [x] Anjali et al. 2020 (abstract + Secs. 1-2 read from the authors' PDF), Wang et al. 2025 (runtime section read from arXiv HTML), and Lin et al. 2018 (abstract) verified; the three related-work sentences now say only what those texts say.
-- [ ] Retype the abstract, introduction, and the Evaluation prose in your own voice. (2 Sep coherence pass removed every reference to earlier versions of the paper, the legacy traces, the pre-hardening driver, the BLOCKED branch, and the rhetorical tags; the paper now reads as one submission.) The current text was drafted from the data by a model as scaffold and should not be submitted as-is (see research/paper-writing standard).
+- [ ] Retype the abstract, introduction, and the Evaluation prose in your own voice.
+  (3 Sep: the mechanical checks in `references/human-prose.md` now pass. Zero em dashes, zero
+  hits on the vocabulary list, three hedges in the whole file, paragraph lengths spread 1 to 9
+  sentences. Those were never the blocker. Steps 4 to 6 of that revision pass, read aloud,
+  the four structural questions, and defending five sentences out loud, are still unrun and
+  cannot be delegated.)
+  The current text was drafted from the data by a model as scaffold and should not be submitted
+  as-is (see research/paper-writing standard). The 2 Sep coherence pass removed every reference
+  to earlier versions of the paper, the legacy traces, the pre-hardening driver, the BLOCKED
+  branch, and the rhetorical tags; the paper now reads as one submission.
 - [x] Human-prose pass done 1 Sep 2026 (humanizer): antithesis closers, counted signposts, -ing tails, and padding triads removed; body now 8.6 pages. Still run Turnitin before submission.
 - [x] Body is exactly 9 pages, references on page 10 (IC2E 2026 rule). Re-check against the 2027 CFP when it appears.
 
@@ -37,3 +46,12 @@ the author.
 - [x] Committed on `paper-v2-ieee`, tagged `v0.2.0-paper` (1 Sep), `v0.3.0-paper` (2 Sep, runtime switch + cloud campaigns), `v0.3.1-paper` (2 Sep, non-dumpable agent + Kata re-verification), `v0.3.2-paper` (2 Sep, runtime-aware settings + OpenHands comparison), pushed.
 - [ ] Retire `O1A/Akshay Kumar Paper 1_07-08-2026.docx`; the tex is the only manuscript.
 - [ ] IEEE PDF eXpress check on the final PDF; ORCID in the author block if the venue requires it.
+- [x] Type 3 fonts removed (3 Sep). matplotlib defaults to `pdf.fonttype: 3`; seven of eight
+  figures embedded Type 3 DejaVuSerif and PDF eXpress rejects it. `pdf.fonttype`/`ps.fonttype`
+  set to 42 in the four plotting scripts, figures regenerated, zero Type 3 in the PDF.
+  Verify with `pdffonts Boxed-IEEE.pdf | grep "Type 3"` after any rebuild.
+- [x] `bench/requirements.txt` pins numpy/pandas/scipy/matplotlib; README quickstart creates the venv.
+  No stock python had them, so `make tables` failed on a clean machine.
+- Note: body now ends on page 9 with references starting there (the shorter abstract reflowed it),
+  so there is roughly half a page of headroom under the limit.
+- Note: affiliation stays "Independent Researcher"; the iitr.ac.in address is a contact address only.
