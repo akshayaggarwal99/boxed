@@ -51,10 +51,9 @@ the author.
 - Note: `bench/.env` holds the API key (mode 600, gitignored). Delete it or rotate the key when done.
 - [x] `bench/analyze/constants.sh` regenerates LOC/binary sizes from the tree.
 - [x] Committed on `paper-v2-ieee`, tagged `v0.2.0-paper` (1 Sep), `v0.3.0-paper` (2 Sep, runtime switch + cloud campaigns), `v0.3.1-paper` (2 Sep, non-dumpable agent + Kata re-verification), `v0.3.2-paper` (2 Sep, runtime-aware settings + OpenHands comparison), pushed.
-- [~] Retire the stale manuscripts; the tex is the only one. `paper/Boxed.docx` and
-  `paper-v2/Boxed-IEEE.docx` moved to Trash 3 Sep. `O1A/00-Plan/Akshay Kumar Paper 1_07-08-2026.docx`
-  (the copy carrying reviewer comments) still needs the author to move it; it sits outside the repo.
-  Rescue anything worth keeping from its comments first.
+- [x] Retired the stale manuscripts 3 Sep; the tex is the only one. `paper/Boxed.docx`,
+  `paper-v2/Boxed-IEEE.docx`, and `O1A/00-Plan/Akshay Kumar Paper 1_07-08-2026.docx` are in Trash.
+  The last of those carried the reviewer comments, so recover it from Trash if those are ever wanted.
 - [ ] IEEE PDF eXpress check on the final PDF; ORCID in the author block if the venue requires it.
 - [x] Type 3 fonts removed (3 Sep). matplotlib defaults to `pdf.fonttype: 3`; seven of eight
   figures embedded Type 3 DejaVuSerif and PDF eXpress rejects it. `pdf.fonttype`/`ps.fonttype`
