@@ -5,7 +5,7 @@
 
 Hello,
 
-Ankita shared this address with me. My paper is ready and attached (10 pages, IEEE format).
+Ankita shared this address with me. My paper is ready (10 pages, IEEE format). Sending the title and a summary below. I will send the full PDF once I hear back from you.
 
 **Title:** Boxed: A Docker-Based Code-Execution Substrate for Autonomous Code-Generating Agents
 
@@ -21,11 +21,11 @@ Boxed is an open-source tool that gives you all three. You run it yourself, so y
 
 Everything is free and open source, including the code, the test tools, and all the raw measurement data: https://github.com/akshayaggarwal99/boxed
 
-**One thing before we go ahead:**
+**Before I send the paper:**
 
-I am targeting IEEE for this paper. Can you place it with an IEEE conference or journal? If yes, please let me know which one, the timeline, and any fees.
+I am targeting IEEE. Can you place it with an IEEE conference or journal? If yes, please let me know which one, the timeline, and any fees.
 
-If it is not IEEE, I would rather hold the paper back, since IEEE does not accept work that has already been published elsewhere.
+If it is not IEEE, I will hold the paper back, since IEEE does not accept work that has already been published elsewhere.
 
 Thanks,
 Akshay Kumar
