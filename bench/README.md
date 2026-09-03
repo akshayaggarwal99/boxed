@@ -18,6 +18,7 @@ cd .. && make build && ./bin/boxed serve --api-key $BOXED_API_KEY
 # Terminal 2: full campaign (5x cold start + raw-Docker baselines, 10 throughput sweeps,
 # overhead, 3x escape probe), then the agent trace, then tables + figures
 cd bench && make build
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt  # analyze/*.py
 RUN=hardened-$(date +%Y-%m) ./run-all.sh
 make agent RUN=hardened-$(date +%Y-%m)   # needs ANTHROPIC_API_KEY
 make plots RUN=hardened-$(date +%Y-%m)

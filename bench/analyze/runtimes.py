@@ -16,7 +16,9 @@ from pathlib import Path
 import numpy as np, pandas as pd
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 plt.rcParams.update({"font.family": "serif", "font.size": 8, "axes.labelsize": 8, "legend.fontsize": 7,
-                     "figure.dpi": 200, "savefig.bbox": "tight", "savefig.pad_inches": 0.02})
+                     "figure.dpi": 200, "savefig.bbox": "tight", "savefig.pad_inches": 0.02,
+                     # TrueType, not Type 3: IEEE PDF eXpress rejects Type 3 fonts.
+                     "pdf.fonttype": 42, "ps.fonttype": 42})
 
 LABEL = {"runc": "runc (container)", "runsc": "gVisor runsc", "kata": "Kata (QEMU microVM)",
          "kata-aware": "Kata, runtime-aware config", "runc-aware": "runc, runtime-aware config"}

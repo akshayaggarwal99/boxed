@@ -58,37 +58,36 @@ akumar8@mt.iitr.ac.in}}
 
 \begin{abstract}
 Autonomous large language model (LLM) agents write, run, and revise code
-inside their reasoning loop, so the sandbox is on the hot path of every
-task. Roll-your-own Docker is quick but is usually deployed without a
-read-only root, capability drops, process caps, or egress control. Hosted
-sandbox services are hardened but move the operator's code and data to a
-third party. Research virtual machine monitors isolate well but are built
-for a boot-once serverless model. Boxed is an open-source substrate for
-agentic code execution: a self-hosted Go control plane, a
-\BoxedAgentBinSize{} Rust in-sandbox agent that streams \texttt{stdout},
-\texttt{stderr}, and files over JSON-RPC~2.0, and a driver interface whose
-four lifecycle methods admit backends beyond the Docker driver that exists
-today. Measured against the Docker Engine API on the same host, image, and
-command, the control plane and agent cost \BoxedOverheadPct{} of a raw
-Docker lifecycle, on a laptop and on an idle server, and the hardened
-configuration is faster than stock Docker defaults because dropping the
-network costs less than setting up the bridge. With the OCI runtime swapped
-under the unchanged driver, a lifecycle takes \RuncBoxedMedian{} with
-\texttt{runc}, \RunscBoxedMedian{} with gVisor, and \KataBoxedMedian{}
-with a Kata microVM, and the substrate's own cost stays close to constant.
-A twelve-vector escape probe scored by post-conditions read from the host
-denies all twelve under \texttt{runc} and gVisor and eleven under Kata,
-whose guest kernel lacks the host policy that had been stopping a
-\texttt{ptrace} attach on the in-sandbox agent; a one-line change to the
-agent brings Kata to twelve. Giving the microVM an internal,
-inter-container-isolated network and no CPU quota cuts its lifecycle to
-\KataAwareBoxedMedian{} with all twelve still denied. On the same host,
-the OpenHands agent-server sandbox in its SDK's default configuration takes
-\OHMedian{} per lifecycle and stops \OHDenied{} of the twelve vectors; the
-cloud metadata endpoint, and with it the instance's service-account token,
-is reachable from the workload. Throughput on one host is bound by the
-Docker daemon: four times the cores gives \ScaleRatioMax{} the sandboxes
-per second. Boxed, the harness, and every raw trace are MIT-licensed.
+inside their reasoning loop, so the sandbox sits on the hot path of every
+task. Roll-your-own Docker is quick and usually ships without a read-only
+root, capability drops, process caps, or egress control. Hosted sandbox
+services are hardened but move the operator's code and data to a third
+party. Research virtual machine monitors isolate well and are built to boot
+once. Boxed is an open-source substrate for agentic code execution: a
+self-hosted Go control plane, a \BoxedAgentBinSize{} Rust in-sandbox agent
+that streams \texttt{stdout}, \texttt{stderr}, and files over
+JSON-RPC~2.0, and a driver interface whose four lifecycle methods admit
+backends beyond the Docker driver that exists today. Against the Docker
+Engine API on the same host, image, and command, the control plane and
+agent cost \BoxedOverheadPct{} of a raw Docker lifecycle, on a laptop and
+on an idle server. The hardened configuration beats stock Docker defaults,
+because dropping the network costs less than setting up the bridge. With
+the OCI runtime swapped under an unchanged driver, a lifecycle takes
+\RuncBoxedMedian{} with \texttt{runc}, \RunscBoxedMedian{} with gVisor, and
+\KataBoxedMedian{} with a Kata microVM, and the substrate's own cost stays
+close to constant. A twelve-vector escape probe scored by post-conditions
+read from the host denies all twelve under \texttt{runc} and gVisor and
+eleven under Kata, whose guest kernel lacks the host policy that had been
+stopping a \texttt{ptrace} attach on the in-sandbox agent; one line in the
+agent closes it. An internal, inter-container-isolated network and no CPU
+quota cut the microVM lifecycle to \KataAwareBoxedMedian{} with all twelve
+denied. On the same host the OpenHands agent-server sandbox, in its SDK's
+default configuration, takes \OHMedian{} per lifecycle and stops
+\OHDenied{} of the twelve; the cloud metadata endpoint answers from inside
+the workload, and with it the instance's service-account token. Throughput
+on one host is bound by the Docker daemon: four times the cores gives
+\ScaleRatioMax{} the sandboxes per second. Boxed, the harness, and every
+raw trace are MIT-licensed.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -150,12 +149,12 @@ technology, so a stronger boundary later means rewriting the orchestration
 layer. Boxed targets that gap: keep the control plane, the keys, and the data
 with the operator, and make the isolation backend a deployment-time choice.
 
-Two questions follow, and Section~\ref{sec:eval} answers them by
-measurement. What do the control plane and agent cost over calling Docker
-directly on the same host, image, and command? And once the Docker driver
-applies the hardening that roll-your-own deployments skip, which of a
-standard set of container-escape vectors does it stop, judged by the state
-left after each attempt and not by strings in the attempt's output?
+That gap sets the two questions Section~\ref{sec:eval} measures. What do
+the control plane and agent cost over calling Docker directly on the same
+host, image, and command? And once the Docker driver applies the hardening
+that roll-your-own deployments skip, which of a standard set of
+container-escape vectors does it stop, judged by the state left after each
+attempt rather than by strings in the attempt's output?
 
 \subsection{Objectives}
 
@@ -502,15 +501,14 @@ adequate egress control.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Evaluation}\label{sec:eval}
 
-This section answers the two questions from Section~\ref{sec:intro}: what
-the control plane and agent cost over calling Docker directly, and which
-escape vectors the hardened driver stops under post-condition scoring. It
-also reports throughput under concurrency, idle per-sandbox overhead, and an
-end-to-end agent trace. Every number below expands from a macro that the released analysis scripts
-generate from the raw traces in the repository.
-
-Fig.~\ref{fig:summary} collects every lifecycle measured in the paper on
-one axis.
+What the control plane and agent cost over calling Docker directly, and
+which escape vectors the hardened driver stops under post-condition
+scoring, are the two questions from Section~\ref{sec:intro}. Throughput
+under concurrency, idle per-sandbox overhead, and an end-to-end agent trace
+follow. No number below is typed by hand: each expands from a macro the
+released analysis scripts generate from the raw traces in the repository.
+Fig.~\ref{fig:summary} puts every lifecycle the paper measures on one
+axis.
 
 \begin{figure}[t]
  \centering

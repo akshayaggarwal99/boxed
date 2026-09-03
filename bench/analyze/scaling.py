@@ -11,7 +11,9 @@ import numpy as np, pandas as pd
 from scipy import stats as sps
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 plt.rcParams.update({"font.family": "serif", "font.size": 8, "axes.labelsize": 8, "legend.fontsize": 7,
-                     "figure.dpi": 200, "savefig.bbox": "tight", "savefig.pad_inches": 0.02})
+                     "figure.dpi": 200, "savefig.bbox": "tight", "savefig.pad_inches": 0.02,
+                     # TrueType, not Type 3: IEEE PDF eXpress rejects Type 3 fonts.
+                     "pdf.fonttype": 42, "ps.fonttype": 42})
 
 def main():
     res, tout, fout = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])

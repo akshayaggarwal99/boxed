@@ -20,6 +20,8 @@ plt.rcParams.update({
     "font.family": "serif", "font.size": 8, "axes.labelsize": 8,
     "legend.fontsize": 7, "figure.dpi": 200, "savefig.bbox": "tight",
     "savefig.pad_inches": 0.02,
+    # TrueType, not Type 3: IEEE PDF eXpress rejects Type 3 fonts.
+    "pdf.fonttype": 42, "ps.fonttype": 42,
 })
 C_BOXED, C_HARD, C_DEF = "#1f5fbf", "#e07b39", "#7a7a7a"
 

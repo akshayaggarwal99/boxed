@@ -1,0 +1,8 @@
+# Analysis and plotting dependencies for bench/analyze/*.py.
+# Versions are the ones the v0.3.2-paper figures and tables were regenerated
+# with (Python 3.12). Older 1.x numpy / 2.x pandas also work; the confidence
+# intervals shift in the last few significant digits with the scipy version.
+matplotlib==3.11.1
+numpy==2.5.2
+pandas==3.0.5
+scipy==1.18.1
