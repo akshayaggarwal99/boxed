@@ -47,6 +47,14 @@ the author.
   the conference runs 13-15 Oct 2026 in Santa Clara. The next IEEE window is IC2E 2027 and its CFP is
   not published yet (2026's appeared around January). Either wait for it or pick another venue.
 
+## Authorship
+- [ ] The 3 Sep inquiry email to techresearch.pub CCs a coauthor (adityamthakre@gmail.com) and says
+  "CCed coauthor", but `main.tex` carries a single \IEEEauthorblockN for Akshay Kumar. Decide which
+  is right before the manuscript goes anywhere. If there is a second author, add name, affiliation,
+  and email to the author block, and check they meet IEEE's authorship criteria (a contribution to
+  the work, not only to the submission). If not, correct it with the publisher.
+- [ ] ORCID in the author block if the venue requires it. Needs the author's ORCID iD.
+
 ## Artifact
 - Note: `bench/.env` holds the API key (mode 600, gitignored). Delete it or rotate the key when done.
 - [x] `bench/analyze/constants.sh` regenerates LOC/binary sizes from the tree.
@@ -54,7 +62,15 @@ the author.
 - [x] Retired the stale manuscripts 3 Sep; the tex is the only one. `paper/Boxed.docx`,
   `paper-v2/Boxed-IEEE.docx`, and `O1A/00-Plan/Akshay Kumar Paper 1_07-08-2026.docx` are in Trash.
   The last of those carried the reviewer comments, so recover it from Trash if those are ever wanted.
-- [ ] IEEE PDF eXpress check on the final PDF; ORCID in the author block if the venue requires it.
+- [ ] IEEE PDF eXpress check on the final PDF. Needs a conference ID, so it is blocked on a venue.
+
+## Outreach
+- [x] 3 Sep 2026, 11:57: inquiry sent to techresearch.pub@gmail.com (cc Ankita, adityamthakre),
+  subject "Paper submission inquiry". Title and plain-language summary only. No PDF, no manuscript
+  file, no repository URL. Asks whether they can place the paper with IEEE, with venue, timeline,
+  and fees. See `submission-email.md` for the text as sent and what it left out.
+- [ ] Awaiting reply. If the answer names a non-IEEE venue, decline before anything else moves:
+  IEEE does not accept work already published elsewhere, and that cannot be appealed.
 - [x] Type 3 fonts removed (3 Sep). matplotlib defaults to `pdf.fonttype: 3`; seven of eight
   figures embedded Type 3 DejaVuSerif and PDF eXpress rejects it. `pdf.fonttype`/`ps.fonttype`
   set to 42 in the four plotting scripts, figures regenerated, zero Type 3 in the PDF.
