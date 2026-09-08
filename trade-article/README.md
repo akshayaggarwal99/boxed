@@ -45,6 +45,28 @@ until the OpenHands maintainers have been notified. Article 4, after disclosure.
    benchmarked systems are the author's own; keep that line.
 4. **One outlet at a time.** Everything on the venue list wants exclusivity.
 
+## Putting an article into the Google Doc
+
+Do not paste the markdown. Render it and paste rich HTML, which gives Docs the
+fonts, the metadata table, bordered tables, and the embedded figures in one go:
+
+```
+python3 build_doc_html.py article-1-hardening-yama-scoring.md > /tmp/a1.html
+# put it on the clipboard as HTML (Swift one-liner compiled in the session; any
+# tool that writes public.html to NSPasteboard works)
+./clip_html /tmp/a1.html
+```
+
+Then in the Doc tab: click into the body, select all, paste. Fonts are Roboto for
+headings, Lora for body, Roboto Mono for code; all three are in Docs' default font
+list. Every element carries an explicit `text-decoration`, because Docs otherwise
+inherits underline from whatever the cursor was touching.
+
+Two things learned the hard way on 8 Sep: never send `cmd+a` to the Doc unless
+the next keystroke is the paste you intend, and use Edit > Find and replace
+(the modal) rather than the Find bar when positioning by text; the bar does not
+reliably take focus and stray keystrokes go into the document.
+
 ## Links
 
 Every article ends with full `https://` URLs on their own lines so they
