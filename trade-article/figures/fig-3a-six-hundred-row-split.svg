@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="800" height="332" viewBox="0 0 800 332" role="img" aria-label="Six hundred predictions pass through a refusal rule. On 139 rows the rule writes WRONG into both judge columns and the judges never run, so agreement there is 100 percent by construction. On the other 461 rows both judges score and kappa is 0.064 before and after the rule. The reported kappa over all 600 rows rose from 0.056 to 0.714, and the whole gain is the top branch.">
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="316" viewBox="0 0 800 316" role="img" aria-label="Six hundred predictions pass through a refusal rule. On 139 rows the rule writes WRONG into both judge columns and the judges never run, so agreement there is 100 percent by construction. On the other 461 rows both judges score and kappa is 0.064 before and after the rule. The reported kappa over all 600 rows rose from 0.056 to 0.714, and the whole gain is the top branch.">
   <defs>
     <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 Z" fill="#52514e"/>
     </marker>
   </defs>
-  <rect width="800" height="332" fill="#fcfcfb"/>
+  <rect width="800" height="316" fill="#fcfcfb"/>
 
   <text x="30" y="34" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#0b0b0b">Where the reported kappa came from</text>
   <text x="30" y="54" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#52514e">A deterministic rule ran before the judges and wrote both of their columns on the rows where it fired</text>
@@ -52,5 +52,4 @@
   <!-- reported number -->
   <line x1="30" y1="286" x2="770" y2="286" stroke="#e1e0d9" stroke-width="1"/>
   <text x="30" y="306" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#0b0b0b"><tspan font-weight="600">Reported:</tspan> kappa over all 600 rows went from 0.056 to 0.714. The whole gain of 0.658 is the top branch, agreeing with itself.</text>
-  <text x="30" y="324" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#898781">AMP judge paper, Fig. 1 and Table 2. Two of the four systems benchmarked are the author's own.</text>
 </svg>

@@ -51,16 +51,18 @@ def vbar(x, w, y0, y1, fill, r=4):
             f'H{x+w-r:.1f} A{r},{r} 0 0 1 {x+w:.1f},{y1+r:.1f} V{y0:.1f} Z" fill="{fill}"/>')
 
 
-def frame(height, title, subtitle, body, source):
-    return "\n".join([
+def frame(height, title, subtitle, body, source=""):
+    parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{height}" viewBox="0 0 {W} {height}">',
         f'<rect width="{W}" height="{height}" fill="{SURFACE}"/>',
         text(32, 34, title, size=16, weight="600"),
         text(32, 54, subtitle, size=12, fill=INK2),
         body,
-        text(32, height - 16, source, size=10, fill=MUTED),
-        "</svg>",
-    ])
+    ]
+    if source:
+        parts.append(text(32, height - 16, source, size=10, fill=MUTED))
+    parts.append("</svg>")
+    return "\n".join(parts)
 
 
 # ---------------------------------------------------------------- 1b
@@ -99,13 +101,11 @@ def fig_1b():
             body.append(hbar(x0, x1, y, bar_h, color))
             body.append(text(x1 + 6, y + bar_h / 2 + 4, f"{val} ms", size=11,
                              fill=INK, weight="600" if emph else "normal"))
-    height = 250
-    body.append(text(32, height - 34, "ms, median of five runs of 200 sequential lifecycles per configuration, same image and command", size=10, fill=MUTED))
+    height = 206
     return frame(height,
                  "Hardening was faster than stock, on both hosts",
-                 "Median create, exec, destroy lifecycle against the Docker Engine API",
-                 "\n".join(body),
-                 "Boxed paper, Table I. Shared scale across panels.")
+                 "Median create, exec, destroy lifecycle, ms, against the Docker Engine API",
+                 "\n".join(body))
 
 
 # ---------------------------------------------------------------- 2a
@@ -129,13 +129,11 @@ def fig_2a():
         body.append(vbar(cx - col_w / 2, col_w, base_y, y1, BLUE))
         body.append(text(cx, y1 - 8, f"{val}", size=12, weight="600", anchor="middle"))
         body.append(text(cx, base_y + 18, label, size=11, fill=INK2, anchor="middle"))
-    body.append(text(x0 + plot_w, top - 14, "4x the cores, 1.2x the throughput", size=11, fill=INK2, anchor="end"))
-    height = 290
+    height = 272
     return frame(height,
                  "Four times the cores bought 1.2 times the sandboxes per second",
-                 "Peak create, destroy throughput, native Linux, runc, mean of 10 sweeps per concurrency level",
-                 "\n".join(body),
-                 "Boxed paper, Table VII. Single-client rate: 3.8, 4.3, 4.4 per second. The Docker daemon, not the cores, is the ceiling.")
+                 "Peak create, destroy throughput, native Linux, runc, mean of 10 sweeps",
+                 "\n".join(body))
 
 
 # ---------------------------------------------------------------- 2b
@@ -162,12 +160,11 @@ def fig_2b():
     body.append(text(x0 + 18, ly + 1, f"Model call (claude-opus-5, adaptive thinking), {model_s} s median", size=11, fill=INK))
     body.append(f'<rect x="{x0}" y="{ly+13}" width="12" height="12" rx="2" fill="{ORANGE}"/>')
     body.append(text(x0 + 18, ly + 23, f"Sandbox create, exec, destroy, {sandbox_ms} ms median", size=11, fill=INK))
-    height = 236
+    height = 204
     return frame(height,
                  "Where an agent step goes",
-                 "Median wall-clock per HumanEval task, 60 task executions, laptop host, 60 of 60 passed",
-                 "\n".join(body),
-                 "Boxed paper, Section V.F. On an idle native Linux host the model's share is 89%.")
+                 "Median wall-clock per HumanEval task, 60 executions, laptop host",
+                 "\n".join(body))
 
 
 # ---------------------------------------------------------------- 2c
@@ -192,12 +189,11 @@ def fig_2c():
         body.append(text(cx, y1 - 8, f"{val} s", size=12, weight="600", anchor="middle"))
         for j, line in enumerate(label.split("\n")):
             body.append(text(cx, base_y + 18 + j * 14, line, size=11, fill=INK2, anchor="middle"))
-    height = 312
+    height = 292
     return frame(height,
                  "Two flags that are free on runc cost seconds on a microVM",
-                 "Kata Containers lifecycle with hardening flags added one at a time, three runs each",
-                 "\n".join(body),
-                 "Boxed paper, Section V.H, knobs.csv. On runc, network none is the fastest option. The CPU quota throttles QEMU while the guest boots.")
+                 "Kata Containers lifecycle with hardening flags added one at a time",
+                 "\n".join(body))
 
 
 # ---------------------------------------------------------------- 3b
@@ -208,10 +204,10 @@ def fig_3b():
     label_w = 230
     x0 = 32 + label_w
     plot_w = W - x0 - 60
-    top = 104
+    top = 92
     row_h = 44
     xmax = 0.8
-    body = [text(32, 70, "The refusal rule wrote WRONG into both judge columns on 139 rows", size=12, fill=INK2)]
+    body = []
     base_y = top + len(rows) * row_h
     for v in (0, 0.2, 0.4, 0.6, 0.8):
         gx = x0 + plot_w * v / xmax
@@ -241,12 +237,11 @@ def fig_3b():
     body.append(text(32 + 18, ly + 4, "Before the refusal rule", size=11, fill=INK))
     body.append(f'<circle cx="{32+186}" cy="{ly}" r="6" fill="{BLUE}"/>')
     body.append(text(32 + 198, ly + 4, "After the refusal rule", size=11, fill=INK))
-    height = 276
+    height = 240
     return frame(height,
                  "The kappa gain lived entirely on the rows the rule wrote",
-                 "Cohen's kappa between qwen3:8b and deepseek-r1:8b over 600 LoCoMo judgments",
-                 "\n".join(body),
-                 "AMP judge paper, Table 2. On the 461 judge-scored rows nothing moved: 0.064 before and after, to four decimals.")
+                 "Cohen's kappa between qwen3:8b and deepseek-r1:8b, 600 LoCoMo judgments",
+                 "\n".join(body))
 
 
 FIGS = {

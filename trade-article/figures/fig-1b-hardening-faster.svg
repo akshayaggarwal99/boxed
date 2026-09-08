@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="720" height="250" viewBox="0 0 720 250">
-<rect width="720" height="250" fill="#fcfcfb"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="206" viewBox="0 0 720 206">
+<rect width="720" height="206" fill="#fcfcfb"/>
 <text x="32.0" y="34.0" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#0b0b0b" text-anchor="start" >Hardening was faster than stock, on both hosts</text>
-<text x="32.0" y="54.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#52514e" text-anchor="start" >Median create, exec, destroy lifecycle against the Docker Engine API</text>
+<text x="32.0" y="54.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#52514e" text-anchor="start" >Median create, exec, destroy lifecycle, ms, against the Docker Engine API</text>
 <text x="32.0" y="74.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#52514e" text-anchor="start" >Laptop, colima VM</text>
 <line x1="222.0" y1="82" x2="222.0" y2="178" stroke="#e1e0d9" stroke-width="1"/>
 <text x="222.0" y="192.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="middle" >0</text>
@@ -36,6 +36,4 @@
 <text x="554.0" y="161.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#52514e" text-anchor="end" >Hardened + control plane</text>
 <path d="M562.0,147.0 H636.1 A4,4 0 0 1 640.1,151.0 V163.0 A4,4 0 0 1 636.1,167.0 H562.0 Z" fill="#c3c2b7"/>
 <text x="646.1" y="161.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#0b0b0b" text-anchor="start" >347 ms</text>
-<text x="32.0" y="216.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="start" >ms, median of five runs of 200 sequential lifecycles per configuration, same image and command</text>
-<text x="32.0" y="234.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="start" >Boxed paper, Table I. Shared scale across panels.</text>
 </svg>

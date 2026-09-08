@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="720" height="236" viewBox="0 0 720 236">
-<rect width="720" height="236" fill="#fcfcfb"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="204" viewBox="0 0 720 204">
+<rect width="720" height="204" fill="#fcfcfb"/>
 <text x="32.0" y="34.0" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#0b0b0b" text-anchor="start" >Where an agent step goes</text>
-<text x="32.0" y="54.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#52514e" text-anchor="start" >Median wall-clock per HumanEval task, 60 task executions, laptop host, 60 of 60 passed</text>
+<text x="32.0" y="54.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#52514e" text-anchor="start" >Median wall-clock per HumanEval task, 60 executions, laptop host</text>
 <rect x="32" y="86" width="555.6" height="24" fill="#2a78d6"/>
 <path d="M589.6,86.0 H684.0 A4,4 0 0 1 688.0,90.0 V106.0 A4,4 0 0 1 684.0,110.0 H589.6 Z" fill="#eb6834"/>
 <text x="310.8" y="102.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#ffffff" text-anchor="middle" >85%</text>
@@ -12,5 +12,4 @@
 <text x="50.0" y="155.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#0b0b0b" text-anchor="start" >Model call (claude-opus-5, adaptive thinking), 3.42 s median</text>
 <rect x="32" y="167" width="12" height="12" rx="2" fill="#eb6834"/>
 <text x="50.0" y="177.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#0b0b0b" text-anchor="start" >Sandbox create, exec, destroy, 453 ms median</text>
-<text x="32.0" y="220.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="start" >Boxed paper, Section V.F. On an idle native Linux host the model's share is 89%.</text>
 </svg>

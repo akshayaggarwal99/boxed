@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="720" height="290" viewBox="0 0 720 290">
-<rect width="720" height="290" fill="#fcfcfb"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="272" viewBox="0 0 720 272">
+<rect width="720" height="272" fill="#fcfcfb"/>
 <text x="32.0" y="34.0" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#0b0b0b" text-anchor="start" >Four times the cores bought 1.2 times the sandboxes per second</text>
-<text x="32.0" y="54.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#52514e" text-anchor="start" >Peak create, destroy throughput, native Linux, runc, mean of 10 sweeps per concurrency level</text>
+<text x="32.0" y="54.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#52514e" text-anchor="start" >Peak create, destroy throughput, native Linux, runc, mean of 10 sweeps</text>
 <line x1="80" y1="240.0" x2="640" y2="240.0" stroke="#c3c2b7" stroke-width="1"/>
 <text x="70.0" y="244.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="end" >0</text>
 <line x1="80" y1="200.0" x2="640" y2="200.0" stroke="#e1e0d9" stroke-width="1"/>
@@ -22,6 +22,4 @@
 <path d="M534.7,240.0 V122.4 A4,4 0 0 1 538.7,118.4 H554.7 A4,4 0 0 1 558.7,122.4 V240.0 Z" fill="#2a78d6"/>
 <text x="546.7" y="110.4" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle" >15.2</text>
 <text x="546.7" y="258.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#52514e" text-anchor="middle" >16 vCPU</text>
-<text x="640.0" y="66.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#52514e" text-anchor="end" >4x the cores, 1.2x the throughput</text>
-<text x="32.0" y="274.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="start" >Boxed paper, Table VII. Single-client rate: 3.8, 4.3, 4.4 per second. The Docker daemon, not the cores, is the ceiling.</text>
 </svg>

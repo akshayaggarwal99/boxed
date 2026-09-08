@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="720" height="312" viewBox="0 0 720 312">
-<rect width="720" height="312" fill="#fcfcfb"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="292" viewBox="0 0 720 292">
+<rect width="720" height="292" fill="#fcfcfb"/>
 <text x="32.0" y="34.0" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#0b0b0b" text-anchor="start" >Two flags that are free on runc cost seconds on a microVM</text>
-<text x="32.0" y="54.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#52514e" text-anchor="start" >Kata Containers lifecycle with hardening flags added one at a time, three runs each</text>
+<text x="32.0" y="54.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#52514e" text-anchor="start" >Kata Containers lifecycle with hardening flags added one at a time</text>
 <line x1="80" y1="240.0" x2="640" y2="240.0" stroke="#c3c2b7" stroke-width="1"/>
 <text x="70.0" y="244.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="end" >0</text>
 <line x1="80" y1="186.7" x2="640" y2="186.7" stroke="#e1e0d9" stroke-width="1"/>
@@ -21,5 +21,4 @@
 <path d="M534.7,240.0 V101.3 A4,4 0 0 1 538.7,97.3 H554.7 A4,4 0 0 1 558.7,101.3 V240.0 Z" fill="#2a78d6"/>
 <text x="546.7" y="89.3" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle" >10.7 s</text>
 <text x="546.7" y="258.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#52514e" text-anchor="middle" >+ one-CPU quota</text>
-<text x="32.0" y="296.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="start" >Boxed paper, Section V.H, knobs.csv. On runc, network none is the fastest option. The CPU quota throttles QEMU while the guest boots.</text>
 </svg>
