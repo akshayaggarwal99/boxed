@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="332" viewBox="0 0 800 332" role="img" aria-label="Six hundred predictions pass through a refusal rule. On 139 rows the rule writes WRONG into both judge columns and the judges never run, so agreement there is 100 percent by construction. On the other 461 rows both judges score and kappa is 0.064 before and after the rule. The reported kappa over all 600 rows rose from 0.056 to 0.714, and the whole gain is the top branch.">
+  <defs>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#52514e"/>
+    </marker>
+  </defs>
+  <rect width="800" height="332" fill="#fcfcfb"/>
+
+  <text x="30" y="34" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#0b0b0b">Where the reported kappa came from</text>
+  <text x="30" y="54" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#52514e">A deterministic rule ran before the judges and wrote both of their columns on the rows where it fired</text>
+
+  <!-- source -->
+  <rect x="30" y="140" width="120" height="60" rx="4" fill="none" stroke="#52514e" stroke-width="1"/>
+  <text x="90" y="165" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle">600 rows</text>
+  <text x="90" y="182" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#52514e" text-anchor="middle">150 per system</text>
+
+  <line x1="150" y1="170" x2="188" y2="170" stroke="#52514e" stroke-width="2" marker-end="url(#head)"/>
+
+  <!-- rule -->
+  <rect x="190" y="140" width="110" height="60" rx="4" fill="none" stroke="#52514e" stroke-width="1"/>
+  <text x="245" y="165" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle">refusal rule</text>
+  <text x="245" y="182" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#52514e" text-anchor="middle">9 prefixes</text>
+
+  <!-- top branch: fires -->
+  <path d="M300,160 H340 V96 H388" fill="none" stroke="#52514e" stroke-width="2" marker-end="url(#head)"/>
+  <text x="334" y="132" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#0b0b0b" text-anchor="end">fires · 139 rows (23%)</text>
+
+  <rect x="390" y="70" width="240" height="52" rx="4" fill="#eb6834" fill-opacity="0.12" stroke="#eb6834" stroke-width="1.5"/>
+  <text x="510" y="91" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle">WRONG written into both columns</text>
+  <text x="510" y="108" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#52514e" text-anchor="middle">the judges never run</text>
+
+  <line x1="630" y1="96" x2="658" y2="96" stroke="#52514e" stroke-width="2" marker-end="url(#head)"/>
+
+  <rect x="660" y="70" width="110" height="52" rx="4" fill="none" stroke="#c3c2b7" stroke-width="1"/>
+  <text x="715" y="91" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle">agreement 100%</text>
+  <text x="715" y="108" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#52514e" text-anchor="middle">by construction</text>
+
+  <!-- bottom branch: passes -->
+  <path d="M300,180 H340 V240 H388" fill="none" stroke="#52514e" stroke-width="2" marker-end="url(#head)"/>
+  <text x="334" y="218" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#0b0b0b" text-anchor="end">passes · 461 rows</text>
+
+  <rect x="390" y="214" width="240" height="52" rx="4" fill="#2a78d6" fill-opacity="0.12" stroke="#2a78d6" stroke-width="1.5"/>
+  <text x="510" y="235" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle">qwen3:8b and deepseek-r1:8b</text>
+  <text x="510" y="252" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#52514e" text-anchor="middle">each score the row</text>
+
+  <line x1="630" y1="240" x2="658" y2="240" stroke="#52514e" stroke-width="2" marker-end="url(#head)"/>
+
+  <rect x="660" y="214" width="110" height="52" rx="4" fill="none" stroke="#c3c2b7" stroke-width="1"/>
+  <text x="715" y="235" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#0b0b0b" text-anchor="middle">kappa 0.064</text>
+  <text x="715" y="252" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#52514e" text-anchor="middle">before and after</text>
+
+  <!-- reported number -->
+  <line x1="30" y1="286" x2="770" y2="286" stroke="#e1e0d9" stroke-width="1"/>
+  <text x="30" y="306" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#0b0b0b"><tspan font-weight="600">Reported:</tspan> kappa over all 600 rows went from 0.056 to 0.714. The whole gain of 0.658 is the top branch, agreeing with itself.</text>
+  <text x="30" y="324" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#898781">AMP judge paper, Fig. 1 and Table 2. Two of the four systems benchmarked are the author's own.</text>
+</svg>

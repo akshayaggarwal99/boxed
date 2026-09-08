@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="250" viewBox="0 0 720 250">
+<rect width="720" height="250" fill="#fcfcfb"/>
+<text x="32.0" y="34.0" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#0b0b0b" text-anchor="start" >Hardening was faster than stock, on both hosts</text>
+<text x="32.0" y="54.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#52514e" text-anchor="start" >Median create, exec, destroy lifecycle against the Docker Engine API</text>
+<text x="32.0" y="74.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#52514e" text-anchor="start" >Laptop, colima VM</text>
+<line x1="222.0" y1="82" x2="222.0" y2="178" stroke="#e1e0d9" stroke-width="1"/>
+<text x="222.0" y="192.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="middle" >0</text>
+<line x1="267.0" y1="82" x2="267.0" y2="178" stroke="#e1e0d9" stroke-width="1"/>
+<text x="267.0" y="192.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="middle" >200</text>
+<line x1="312.0" y1="82" x2="312.0" y2="178" stroke="#e1e0d9" stroke-width="1"/>
+<text x="312.0" y="192.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="middle" >400</text>
+<line x1="222" y1="82" x2="222" y2="178" stroke="#c3c2b7" stroke-width="1"/>
+<text x="214.0" y="101.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#52514e" text-anchor="end" >Raw Docker, stock defaults</text>
+<path d="M222.0,87.0 H266.6 A4,4 0 0 1 270.6,91.0 V103.0 A4,4 0 0 1 266.6,107.0 H222.0 Z" fill="#c3c2b7"/>
+<text x="276.6" y="101.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#0b0b0b" text-anchor="start" >216 ms</text>
+<text x="214.0" y="131.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#0b0b0b" text-anchor="end" >Raw Docker, hardened</text>
+<path d="M222.0,117.0 H252.4 A4,4 0 0 1 256.4,121.0 V133.0 A4,4 0 0 1 252.4,137.0 H222.0 Z" fill="#2a78d6"/>
+<text x="262.4" y="131.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0b0b0b" text-anchor="start" >153 ms</text>
+<text x="214.0" y="161.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#52514e" text-anchor="end" >Hardened + control plane</text>
+<path d="M222.0,147.0 H258.1 A4,4 0 0 1 262.1,151.0 V163.0 A4,4 0 0 1 258.1,167.0 H222.0 Z" fill="#c3c2b7"/>
+<text x="268.1" y="161.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#0b0b0b" text-anchor="start" >178 ms</text>
+<text x="372.0" y="74.0" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#52514e" text-anchor="start" >GCE n2-standard-4, idle</text>
+<line x1="562.0" y1="82" x2="562.0" y2="178" stroke="#e1e0d9" stroke-width="1"/>
+<text x="562.0" y="192.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="middle" >0</text>
+<line x1="607.0" y1="82" x2="607.0" y2="178" stroke="#e1e0d9" stroke-width="1"/>
+<text x="607.0" y="192.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="middle" >200</text>
+<line x1="652.0" y1="82" x2="652.0" y2="178" stroke="#e1e0d9" stroke-width="1"/>
+<text x="652.0" y="192.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="middle" >400</text>
+<line x1="562" y1="82" x2="562" y2="178" stroke="#c3c2b7" stroke-width="1"/>
+<text x="554.0" y="101.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#52514e" text-anchor="end" >Raw Docker, stock defaults</text>
+<path d="M562.0,87.0 H640.8 A4,4 0 0 1 644.8,91.0 V103.0 A4,4 0 0 1 640.8,107.0 H562.0 Z" fill="#c3c2b7"/>
+<text x="650.8" y="101.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#0b0b0b" text-anchor="start" >368 ms</text>
+<text x="554.0" y="131.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#0b0b0b" text-anchor="end" >Raw Docker, hardened</text>
+<path d="M562.0,117.0 H625.0 A4,4 0 0 1 629.0,121.0 V133.0 A4,4 0 0 1 625.0,137.0 H562.0 Z" fill="#2a78d6"/>
+<text x="635.0" y="131.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#0b0b0b" text-anchor="start" >298 ms</text>
+<text x="554.0" y="161.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#52514e" text-anchor="end" >Hardened + control plane</text>
+<path d="M562.0,147.0 H636.1 A4,4 0 0 1 640.1,151.0 V163.0 A4,4 0 0 1 636.1,167.0 H562.0 Z" fill="#c3c2b7"/>
+<text x="646.1" y="161.0" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#0b0b0b" text-anchor="start" >347 ms</text>
+<text x="32.0" y="216.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="start" >ms, median of five runs of 200 sequential lifecycles per configuration, same image and command</text>
+<text x="32.0" y="234.0" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" fill="#898781" text-anchor="start" >Boxed paper, Table I. Shared scale across panels.</text>
+</svg>

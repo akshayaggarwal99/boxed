@@ -33,6 +33,9 @@ I ran the same create, exec, destroy cycle three ways against the Docker Engine 
 | Raw Docker, hardened | **153 ms** | **298 ms** |
 | Hardened plus control plane and agent | 178 ms | 347 ms |
 
+> **[Figure 1b: `figures/fig-1b-hardening-faster@2x.png`]**
+> *Hardening was faster than stock on both hosts. Median create, exec, destroy lifecycle against the Docker Engine API; five runs of 200 sequential lifecycles per configuration, same image and command, shared scale across panels.*
+
 Hardening was 63 ms faster than stock on the laptop. I assumed I had a bug and repeated the whole campaign on an idle Compute Engine host. Same direction: 70 ms faster. The absolute numbers move between hosts. The sign does not.
 
 The reason is dull once you see it. `--network none` means Docker never creates a veth pair, never attaches it to the bridge, never programs the address, and never tears any of that down. That work costs more than the read-only root, the capability drop and the tmpfs mounts save. The single most consequential security flag in the list is also the one that removes the most work from the lifecycle.
@@ -73,6 +76,9 @@ runc had never been blocking that attack. The host kernel had.
 Linux ships a Yama security module. With `ptrace_scope=1`, which is the default on most distributions, a process may only attach to its own descendants. Under runc the container shares the host kernel, so Yama was quietly enforcing that on every sandbox I had ever measured. Kata's guest kernel has no Yama. Inside the microVM my workload and my agent both run as root, a same-uid `ptrace` needs no capability at all, and so the attach succeeded.
 
 I had `CapDrop ALL` in the configuration. I had looked at that line many times and read it as covering exactly this case. It never did. A host kernel policy I had not written, did not configure, and could not see from inside the container was carrying a control I believed was mine.
+
+> **[Figure 1a: `figures/fig-1a-two-kernels@2x.png`]**
+> *Same flags, same attack, different kernel. Under runc the container shares the host kernel, and Yama `ptrace_scope=1` refuses the attach. Under Kata the microVM's guest kernel has no Yama, and the identical attach succeeds. The fix, `prctl(PR_SET_DUMPABLE, 0)` in the agent, closes it under all three runtimes.*
 
 That is the part worth generalizing. When you harden a container you are configuring two things at once: the flags you wrote, and whatever the host kernel happens to enforce underneath them. The second set does not appear in your compose file. It varies between distributions and between cloud images. And it disappears the moment you move to an isolation technology that brings its own kernel. Upgrading to a stronger boundary can silently remove a protection you did not know you were relying on.
 

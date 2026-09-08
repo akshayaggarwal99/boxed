@@ -32,6 +32,9 @@ Sixty of sixty passed. The pass rate measures the model, not the sandbox, and I 
 | Sandbox create, exec, destroy | 453 ms | 15 percent |
 | End to end | 3.95 s | |
 
+> **[Figure 2b: `figures/fig-2b-agent-step-split@2x.png`]**
+> *Where an agent step goes. Median wall-clock per HumanEval task over 60 executions on the laptop host: the model call is 3.42 s (85 percent), the sandbox lifecycle 453 ms (15 percent). On an idle native Linux host the model's share is 89 percent.*
+
 On a quieter native Linux host the model's share rises to 89 percent. On a busier one it would fall. Either way, for a frontier model on a real task, the sandbox is a minority of every iteration, and the model call is where the seconds live.
 
 That has a practical consequence. Shaving 50 ms off sandbox creation buys you about one percent of an agent step. Shaving 50 ms off anything in the model path buys the same. Neither is nothing, but if your sandbox is already in the low hundreds of milliseconds, further tuning is a rounding error against inference. Spend the engineering somewhere else.
@@ -61,6 +64,9 @@ So what is the plateau? Either four cores or one Docker daemon. To tell them apa
 | 4 vCPU | 12.3 | 3.8 |
 | 8 vCPU | 13.6 | 4.3 |
 | 16 vCPU | 15.2 | 4.4 |
+
+> **[Figure 2a: `figures/fig-2a-cores-vs-throughput@2x.png`]**
+> *Four times the cores bought 1.2 times the sandboxes per second. Peak create, destroy throughput on native Linux under runc, mean of ten sweeps per concurrency level, axis from zero. Single-client rate: 3.8, 4.3, 4.4 per second.*
 
 **Four times the cores bought 1.2 times the throughput.** The single-client rate barely moved. On sixteen vCPUs the peak arrives at four clients and falls back to roughly the four-vCPU level by thirty-two.
 
@@ -93,6 +99,9 @@ Kata's stock lifecycle on this host is about 2.8 seconds. Its lifecycle with my 
 | Bare Kata boot, stock | 2.8 s |
 | plus network `none` | 7.7 s |
 | plus one-CPU quota | 10.7 s |
+
+> **[Figure 2c: `figures/fig-2c-kata-flags@2x.png`]**
+> *Two flags that are free on runc cost seconds on a microVM. Kata Containers lifecycle with the hardening flags added one at a time, three runs each. On runc, network none is the fastest option; on Kata the CPU quota throttles QEMU while the guest kernel boots.*
 
 Network `none` takes a bare Kata boot from 2.8 to 7.7 seconds. On runc that same flag was the fastest option, because it skips bridge setup. On Kata the runtime still has to bring up a guest network stack and then tear the sandbox's networking down, and the `none` path turns out to be the slow one. The one-CPU quota takes it to 10.7 seconds, because the cgroup quota throttles the QEMU process while the guest kernel is booting. A limit meant for the workload is throttling the hypervisor.
 

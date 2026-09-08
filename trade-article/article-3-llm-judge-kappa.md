@@ -32,6 +32,9 @@ Under raw verdicts, refusing costs a system almost nothing. And the systems that
 
 So I wrote a rule. Nine refusal prefixes. If a prediction starts with one, write WRONG into both judge columns and do not invoke either judge on that row. It fires on 139 of 600 rows, 23.2 percent.
 
+> **[Figure 3a: `figures/fig-3a-six-hundred-row-split@2x.png`]**
+> *Where the reported kappa came from. On 139 rows the rule writes WRONG into both judge columns and the judges never run, so agreement there is 100 percent by construction. On the other 461 rows both judges score, and kappa is 0.064 before and after. The reported 0.056 to 0.714 over all 600 rows is the top branch agreeing with itself.*
+
 Then I recomputed inter-judge agreement. Kappa went from 0.056 to 0.714. Slight to substantial on the usual thresholds. I wrote it up as a reliability gain and recommended the rule as a default.
 
 ## Where the gain actually came from
@@ -45,6 +48,9 @@ The interesting part is the other 461 rows. The rule never touches them. Both ju
 | All 600 rows | 600 | 0.056 | 0.714 |
 | Rows the rule writes | 139 | 0.030 | undefined, both raters constant |
 | Rows the rule never touches | 461 | 0.064 | 0.064 |
+
+> **[Figure 3b: `figures/fig-3b-kappa-dumbbell@2x.png`]**
+> *The kappa gain lived entirely on the rows the rule wrote. Cohen's kappa between qwen3:8b and deepseek-r1:8b before and after the refusal rule: 0.056 to 0.714 over all 600 rows; 0.064 to 0.064, unchanged to four decimals, over the 461 rows the rule never touched.*
 
 The entire gain of 0.658 lives on the rows the rule supplied. On the rows where the judges were actually judging, they agreed about as well as two people flipping coins.
 
