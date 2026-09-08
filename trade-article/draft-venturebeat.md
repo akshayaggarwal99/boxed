@@ -1,7 +1,8 @@
 # Draft — VentureBeat guest post (target 800–1200 words)
 
 **Status: skeleton for the author to rewrite.** VentureBeat bans AI-generated
-content. Every number below is verified against `bench/results/`; the sentences
+content. Every number below is verified against the raw traces at
+https://github.com/akshayaggarwal99/boxed/tree/v0.3.2-paper/bench/results ; the sentences
 need to be retyped in your own voice before submission.
 
 **Headline:** I hardened my AI agent sandbox and it got faster. Then a microVM
@@ -140,5 +141,7 @@ workload under a different runtime and watch which controls survive.
 And stop grading sandbox tests on what the attack printed. Grade them on what
 the host can see afterward.
 
-The substrate, the harness, and every raw trace are MIT-licensed at
-github.com/akshayaggarwal99/boxed.
+The substrate, the harness, and every raw trace are MIT-licensed.
+
+Repository: https://github.com/akshayaggarwal99/boxed
+Numbers in this article: https://github.com/akshayaggarwal99/boxed/tree/v0.3.2-paper

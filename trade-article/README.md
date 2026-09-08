@@ -5,9 +5,9 @@ has the ranked list with word caps and contacts.
 
 | # | File | Words | Source | One line |
 |---|---|---|---|---|
-| 1 | `article-1-hardening-yama-scoring.md` | 1,626 | Boxed paper | Hardening made containers faster; a Kata microVM exposed a protection that belonged to the host kernel; grep-based escape tests misscored 2 of 12 vectors |
-| 2 | `article-2-where-the-time-goes.md` | 1,744 | Boxed paper | The model is 85 percent of an agent step; 4x cores bought 1.2x sandboxes because the daemon is the bottleneck; two hardening flags tripled a microVM's boot |
-| 3 | `article-3-llm-judge-kappa.md` | 1,687 | AMP judge paper | A refusal regex moved Cohen's kappa from 0.06 to 0.71 without touching a judge; on the 461 rows it never wrote, kappa stayed 0.064 |
+| 1 | `article-1-hardening-yama-scoring.md` | 1,626 | Boxed paper, https://github.com/akshayaggarwal99/boxed | Hardening made containers faster; a Kata microVM exposed a protection that belonged to the host kernel; grep-based escape tests misscored 2 of 12 vectors |
+| 2 | `article-2-where-the-time-goes.md` | 1,744 | Boxed paper, https://github.com/akshayaggarwal99/boxed | The model is 85 percent of an agent step; 4x cores bought 1.2x sandboxes because the daemon is the bottleneck; two hardening flags tripled a microVM's boot |
+| 3 | `article-3-llm-judge-kappa.md` | 1,687 | AMP judge paper (manuscript, not yet public); system under test at https://github.com/akshayaggarwal99/amp | A refusal regex moved Cohen's kappa from 0.06 to 0.71 without touching a judge; on the 461 rows it never wrote, kappa stayed 0.064 |
 
 Also here: `draft-venturebeat.md`, the 1,031-word cut of article 1 for VentureBeat's
 800-1200 cap, and `pitch.md`, a cover note for outlets that take pitches.
@@ -44,6 +44,24 @@ until the OpenHands maintainers have been notified. Article 4, after disclosure.
    akumar8@mt.iitr.ac.in. Article 3 also discloses that two of the four
    benchmarked systems are the author's own; keep that line.
 4. **One outlet at a time.** Everything on the venue list wants exclusivity.
+
+## Links
+
+Every article ends with full `https://` URLs on their own lines so they
+autolink when pasted into Google Docs.
+
+- Boxed repository: https://github.com/akshayaggarwal99/boxed
+- Boxed at the tag the articles' numbers come from: https://github.com/akshayaggarwal99/boxed/tree/v0.3.2-paper
+- Raw traces: https://github.com/akshayaggarwal99/boxed/tree/v0.3.2-paper/bench/results
+- AMP repository: https://github.com/akshayaggarwal99/amp
+- AMP on PyPI: https://pypi.org/project/amp-memory/
+
+**Article 3 has no paper link yet.** The judge manuscript lives in
+`sementic-context-protocol/amp/paper-judge`, which is not tracked in the public
+AMP repository, and the paper has no arXiv or OpenReview URL. The article
+therefore says the verdicts and analysis code "will be released alongside the
+paper" rather than that they are released. Push the analysis, or post the
+preprint, before this article runs anywhere, and then change that sentence.
 
 ## Regenerating the numbers
 

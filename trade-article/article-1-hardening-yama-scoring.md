@@ -1,9 +1,9 @@
 # Article 1: Hardening was free, a stronger boundary removed a protection, and the test that caught it
 
 **Source:** Boxed paper (paper-v2), Sections V.B, V.E, V.G and V.H.
-**Length:** 1,626 words. An 1,031-word cut for VentureBeat is in `draft-venturebeat.md`.
+**Length:** 1,626 words. A 1,031-word cut for VentureBeat exists as a separate draft.
 **Audience:** platform, infrastructure and security engineers who run untrusted code in containers.
-**Status:** review draft. Every number is verified against `bench/results/`. Prose to be retyped by the author before submission; several target outlets ban AI-assisted writing.
+**Status:** review draft. Every number is verified against the raw traces at https://github.com/akshayaggarwal99/boxed/tree/v0.3.2-paper/bench/results . Prose to be retyped by the author before submission; several target outlets ban AI-assisted writing.
 
 ## Title options
 
@@ -120,4 +120,7 @@ Do not assume your configuration is the thing enforcing your configuration. Run 
 
 Stop grading sandbox tests on what the attack printed. Grade them on what the host can see afterwards.
 
-The substrate, the harness, the campaign runner, and every raw trace are MIT-licensed at github.com/akshayaggarwal99/boxed. Every number in this article regenerates from those traces with one `make` command.
+The substrate, the harness, the campaign runner, and every raw trace are MIT-licensed, and every number in this article regenerates from those traces with one `make` command.
+
+Repository: https://github.com/akshayaggarwal99/boxed
+Numbers in this article: https://github.com/akshayaggarwal99/boxed/tree/v0.3.2-paper

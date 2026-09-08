@@ -1,6 +1,6 @@
 # Article 3: Our two LLM judges agreed 0.71 of the time. A regex was doing the agreeing.
 
-**Source:** AMP judge paper (`sementic-context-protocol/amp/paper-judge`), Sections 1, 4, 5 and 6.
+**Source:** AMP judge paper, Sections 1, 4, 5 and 6. The manuscript and its analysis code are not yet public. The memory system it benchmarks is: https://github.com/akshayaggarwal99/amp and https://pypi.org/project/amp-memory/
 **Length:** 1,687 words.
 **Audience:** anyone building or reviewing an LLM-as-judge evaluation pipeline. ML engineers, eval leads, benchmark authors.
 **Status:** review draft. Every number is verified against the paper's tables. Prose to be retyped by the author before submission.
@@ -107,4 +107,7 @@ When the restricted number is bad, as mine is, there are three honest responses.
 
 I am not proposing a replacement coefficient. Prevalence-adjusted indices exist. The problem here is not the formula. It is the denominator. And note that excluding the affected rows instead of recoding them also moves the marginals of what remains, without the visibility of a cell sitting at 100 percent to tip you off.
 
-Per-question verdicts and the analysis code are released with the paper. If you have a judge pipeline with a filter in front of it, the split in the first table takes about ten minutes to reproduce on your own data, and I would be curious what you find.
+The memory system under test is open source, and the per-question verdicts and analysis code will be released alongside the paper. If you have a judge pipeline with a filter in front of it, the split in the first table takes about ten minutes to reproduce on your own data, and I would be curious what you find.
+
+AMP repository: https://github.com/akshayaggarwal99/amp
+Package: https://pypi.org/project/amp-memory/

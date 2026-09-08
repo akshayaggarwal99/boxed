@@ -3,7 +3,7 @@
 **Source:** Boxed paper (paper-v2), Sections V.C, V.D, V.F, V.G, V.I and VI.
 **Length:** 1,744 words.
 **Audience:** platform and infrastructure leads deciding how to run code-execution sandboxes for agents at scale. Capacity planning, not security.
-**Status:** review draft. Every number is verified against `bench/results/`. Prose to be retyped by the author before submission.
+**Status:** review draft. Every number is verified against the raw traces at https://github.com/akshayaggarwal99/boxed/tree/v0.3.2-paper/bench/results . Prose to be retyped by the author before submission.
 
 ## Title options
 
@@ -116,4 +116,7 @@ And under any of them, if the question is "how do I get more sandboxes per secon
 
 ## Where the numbers come from
 
-Everything here was measured on the same open-source substrate with the same harness: a MacBook Pro M1 Pro running Docker in a four-vCPU colima VM for the laptop figures, and Compute Engine `n2-standard-4`, `-8` and `-16` instances for the native and scaling figures. Five runs of 200 lifecycles for the latency numbers, ten sweeps per concurrency level for throughput, three repetitions of the agent trace, with the host load recorded next to every trace. The substrate, harness, campaign runner and raw traces are MIT-licensed at github.com/akshayaggarwal99/boxed.
+Everything here was measured on the same open-source substrate with the same harness: a MacBook Pro M1 Pro running Docker in a four-vCPU colima VM for the laptop figures, and Compute Engine `n2-standard-4`, `-8` and `-16` instances for the native and scaling figures. Five runs of 200 lifecycles for the latency numbers, ten sweeps per concurrency level for throughput, three repetitions of the agent trace, with the host load recorded next to every trace. The substrate, harness, campaign runner and raw traces are MIT-licensed.
+
+Repository: https://github.com/akshayaggarwal99/boxed
+Numbers in this article: https://github.com/akshayaggarwal99/boxed/tree/v0.3.2-paper
