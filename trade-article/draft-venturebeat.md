@@ -1,4 +1,4 @@
-# Draft — VentureBeat guest post (target 800–1200 words)
+# Draft: VentureBeat guest post (target 800–1200 words)
 
 **Status: skeleton for the author to rewrite.** VentureBeat bans AI-generated
 content. Every number below is verified against the raw traces at
