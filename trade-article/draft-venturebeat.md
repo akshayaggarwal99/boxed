@@ -8,7 +8,7 @@ need to be retyped in your own voice before submission.
 **Headline:** I hardened my AI agent sandbox and it got faster. Then a microVM
 showed me what I had actually secured.
 
-**Byline:** Akshay Kumar, Independent Researcher — akumar8@mt.iitr.ac.in
+**Byline:** Akshay Kumar, Independent Researcher, akumar8@mt.iitr.ac.in
 
 **One-sentence bio:** Akshay Kumar is an independent researcher who builds and
 measures code-execution sandboxes for autonomous coding agents.
@@ -38,9 +38,12 @@ equally.
 On a laptop, stock defaults came in at a median of 216 ms. The hardened
 configuration: 153 ms. Hardening was **63 ms faster**. I assumed I had a bug, so
 I repeated the whole campaign on an idle GCE `n2-standard-4`. Same direction:
-368 ms stock, 298 ms hardened, 70 ms faster.
+368 ms stock, 298 ms hardened, 70 ms faster. The laptop ran Docker 29.5.2 in a
+Colima VM on kernel 6.8.0-117-generic; the cloud host ran Ubuntu 24.04.4, kernel
+6.17.0-1022-gcp, Docker 29.7.2. Bootstrap 95 percent intervals on the laptop
+medians are within 2 ms either side.
 
-The reason is dull once you see it. `--network none` means Docker never creates
+The likely reason is dull once you see it, though I have not profiled the daemon to confirm the split. `--network none` means Docker never creates
 a veth pair, never attaches the container to the bridge, and never tears any of
 it down. That setup and teardown costs more than the read-only root, the
 capability drop and the tmpfs mounts save. The most security-relevant flag in
@@ -53,14 +56,16 @@ weaker and slower at the same time.
 
 Docker lets you swap the OCI runtime per container. So I ran the identical
 control plane, agent, image and harness under three of them: `runc`, gVisor's
-`runsc` user-space kernel, and Kata Containers, which boots a real QEMU microVM
-per sandbox.
+`runsc` user-space kernel, and Kata Containers 4.1, which boots a real QEMU
+microVM per sandbox. Same nested-virtualization GCE host for all three.
 
 Lifecycle medians: 354 ms under runc, 405 ms under gVisor, 7,824 ms under Kata.
 No surprise there. You pay for a stronger boundary in boot time.
 
-The surprise was the escape probe. I run twelve attempts drawn from common
-container-escape patterns: a filesystem mount, reading the host through
+The surprise was the escape probe. Each attempt is judged by a post-condition
+read from the host afterwards, such as the `errno` the syscall returned or a
+cgroup counter, not by what the attempt printed. I run twelve attempts drawn
+from common container-escape patterns: a filesystem mount, reading the host through
 `/proc/1/root`, the Docker socket, `init_module`, a raw socket, a new user and
 PID namespace, egress to RFC1918 and to the cloud metadata endpoint, a fork
 storm, a memory bomb, a root filesystem write, and `PTRACE_ATTACH` on my
@@ -69,14 +74,17 @@ in-sandbox agent.
 Under runc: 12 of 12 denied. Under gVisor: 12 of 12. Under Kata, the strictly
 stronger boundary: **11 of 12**.
 
-The `ptrace` attach worked.
+The `PTRACE_ATTACH` call succeeded. Inside the guest the workload and my agent
+run as the same user, root, so this is a same-UID attach within the microVM, not
+an escape to the host. It still matters: code under test could rewrite the
+process that reports on it.
 
 ## What was actually protecting me
 
 runc had never been blocking that attack. The host kernel had.
 
-Linux ships a Yama LSM, and with `ptrace_scope=1` it limits attachment to
-descendant processes. Under runc the container shares the host kernel, so Yama
+Linux ships a Yama LSM, and with `ptrace_scope=1`, Ubuntu's default and the
+setting on both hosts I measured, it limits attachment to descendant processes. Under runc the container shares the host kernel, so Yama
 was quietly doing the work. Kata's guest kernel has no Yama at all. Inside that
 microVM my workload and my agent both run as root, and a same-uid `ptrace` needs
 no capability. So the attach succeeded.
@@ -133,7 +141,9 @@ returned and what the host could still see.
 Three things, in order of how cheaply you can act on them.
 
 Turn the hardening flags on. On both hosts I measured, they were free, and
-`--network none` beat the bridge.
+`--network none` beat the bridge. If your agents need egress, use an internal
+Docker network with inter-container traffic disabled instead; it keeps most of
+the speed.
 
 Do not assume your config is the thing enforcing your config. Run the same
 workload under a different runtime and watch which controls survive.
