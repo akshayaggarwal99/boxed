@@ -1,7 +1,7 @@
 # Article 1: Hardening was free, a stronger boundary removed a protection, and the test that caught it
 
 **Source:** Boxed paper (paper-v2), Sections V.B, V.E, V.G and V.H.
-**Length:** 1,626 words. A 1,031-word cut for VentureBeat exists as a separate draft.
+**Length:** ~1,900 words. A 1,031-word cut for VentureBeat exists as a separate draft.
 **Audience:** platform, infrastructure and security engineers who run untrusted code in containers.
 **Status:** review draft. Every number is verified against the raw traces at https://github.com/akshayaggarwal99/boxed/tree/v0.3.2-paper/bench/results . Prose to be retyped by the author before submission; several target outlets ban AI-assisted writing.
 
@@ -33,12 +33,14 @@ I ran the same create, exec, destroy cycle three ways against the Docker Engine 
 | Raw Docker, hardened | **153 ms** | **298 ms** |
 | Hardened plus control plane and agent | 178 ms | 347 ms |
 
+The laptop runs Docker 29.5.2 inside a Colima VM on kernel 6.8.0-117-generic, arm64. The cloud host is a Compute Engine n2-standard-4 on Ubuntu 24.04.4, kernel 6.17.0-1022-gcp, Docker 29.7.2. Those are medians; with a bootstrap 95 percent interval on the laptop they are 216 ms (214 to 218, interquartile range 44) for stock, 153 ms (151 to 155, IQR 42) hardened, and 178 ms (177 to 179, IQR 33) with the control plane.
+
 > **[Figure 1b: `figures/fig-1b-hardening-faster@2x.png`]**
 > *Hardening was faster than stock on both hosts. Median create, exec, destroy lifecycle against the Docker Engine API; five runs of 200 sequential lifecycles per configuration, same image and command, shared scale across panels.*
 
 Hardening was 63 ms faster than stock on the laptop. I assumed I had a bug and repeated the whole campaign on an idle Compute Engine host. Same direction: 70 ms faster. The absolute numbers move between hosts. The sign does not.
 
-The reason is dull once you see it. `--network none` means Docker never creates a veth pair, never attaches it to the bridge, never programs the address, and never tears any of that down. That work costs more than the read-only root, the capability drop and the tmpfs mounts save. The single most consequential security flag in the list is also the one that removes the most work from the lifecycle.
+The likely reason is dull once you see it. `--network none` means Docker never creates a veth pair, never attaches it to the bridge, never programs the address, and never tears any of that down. That work costs more than the read-only root, the capability drop and the tmpfs mounts save. I have not profiled the daemon to confirm that split; it is the standard account of what the flag skips, and the measured difference is the part to trust. The single most consequential security flag in the list is also the one that removes the most work from the lifecycle.
 
 The control plane I built on top costs 25 ms, or 16 percent of the raw lifecycle: 22 ms on create, 2 ms on the first exec, 1 ms on destroy. An idle sandbox holds 0.43 MiB and 0.01 percent of a CPU. I mention those so nobody reads this as a claim that my software is faster than Docker. It is not. The hardening is.
 
@@ -46,11 +48,11 @@ If you skipped hardening to keep your agent loop fast, you made your sandbox wea
 
 ## Then I changed the boundary
 
-Docker lets you name an alternative OCI runtime per container. The driver passes that through as one field. So I ran the identical control plane, agent, image and harness under three runtimes on one host: `runc`, gVisor's `runsc`, which interposes a user-space kernel, and Kata Containers, which boots a QEMU microVM with its own guest kernel for every sandbox.
+Docker lets you name an alternative OCI runtime per container. The driver passes that through as one field. So I ran the identical control plane, agent, image and harness under three runtimes on one host: `runc`, gVisor's `runsc`, which interposes a user-space kernel, and Kata Containers, which boots a QEMU microVM with its own guest kernel for every sandbox. The versions were runc as bundled with Docker CE 29.7.2, runsc from gVisor's apt repository as of September 2026, and Kata 4.1 with runtime-rs on QEMU, all on the same nested-virtualization Compute Engine host.
 
-Lifecycle medians were 354 ms under runc, 405 ms under gVisor, and 7,824 ms under Kata. No surprise. A stronger boundary costs boot time.
+Lifecycle medians were 354 ms under runc, 405 ms under gVisor, and 7,824 ms under Kata. No surprise. A stronger boundary costs boot time, and it costs density too: at a concurrency of sixteen, Kata failed to create 23 of 72 sandboxes where the other two runtimes had no errors. The companion capacity-planning article has those numbers.
 
-The surprise was the escape probe. I run twelve attempts drawn from common container-escape patterns, each in a fresh sandbox, the whole suite three times:
+The surprise was the escape probe. Each attempt is scored two ways. The usual way greps the attempt's output for a denial string. The way I trust reads a post-condition from the host after the attempt: the `errno` the syscall returned, a counter in the sandbox's cgroup, an entry in `/proc/mounts`, a file that does or does not exist afterwards. The post-condition decides every verdict below; the string method is kept only so the two can be compared later. I run twelve attempts drawn from common container-escape patterns, each in a fresh sandbox, the whole suite three times:
 
 - mount a filesystem
 - read the host through `/proc/1/root`
@@ -67,13 +69,13 @@ The surprise was the escape probe. I run twelve attempts drawn from common conta
 
 Under runc, twelve of twelve denied, identical across all three runs. Under gVisor, twelve of twelve. Under Kata, the strictly stronger boundary, **eleven of twelve**.
 
-The `ptrace` attach worked.
+The `PTRACE_ATTACH` call succeeded. Inside the microVM the workload and my agent run as the same user, root, so this is a same-UID attach within the guest, not an escape to the host. It still matters. Code the agent is supposed to be supervising could read and rewrite the process that reports its results.
 
 ## What was actually protecting me
 
 runc had never been blocking that attack. The host kernel had.
 
-Linux ships a Yama security module. With `ptrace_scope=1`, which is the default on most distributions, a process may only attach to its own descendants. Under runc the container shares the host kernel, so Yama was quietly enforcing that on every sandbox I had ever measured. Kata's guest kernel has no Yama. Inside the microVM my workload and my agent both run as root, a same-uid `ptrace` needs no capability at all, and so the attach succeeded.
+Linux ships a Yama security module. With `ptrace_scope=1`, which is Ubuntu's default and was the setting on both hosts I measured (the probe's evidence line under runc records `yama=1`), a process may only attach to its own descendants. Under runc the container shares the host kernel, so Yama was quietly enforcing that on every sandbox I had ever measured. Kata's guest kernel has no Yama. Inside the microVM my workload and my agent both run as root, a same-uid `ptrace` needs no capability at all, and so the attach succeeded.
 
 I had `CapDrop ALL` in the configuration. I had looked at that line many times and read it as covering exactly this case. It never did. A host kernel policy I had not written, did not configure, and could not see from inside the container was carrying a control I believed was mine.
 
@@ -120,7 +122,7 @@ I would also have written the post-condition scorer before the first probe rathe
 
 Three things, cheapest first.
 
-Turn the hardening flags on. On both hosts I measured, they were free, and `--network none` beat the bridge.
+Turn the hardening flags on. On both hosts I measured, they were free, and `--network none` beat the bridge. If your agents need egress for package installs or API calls, `none` is not available to you; the driver's alternative is an operator-created internal network with inter-container traffic disabled, which keeps the bridge and most of the speed, and the companion article measures it.
 
 Do not assume your configuration is the thing enforcing your configuration. Run the same workload under a second runtime and watch which controls survive the move. The ones that do not were never yours.
 
