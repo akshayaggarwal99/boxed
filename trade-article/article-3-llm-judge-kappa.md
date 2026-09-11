@@ -113,7 +113,7 @@ When the restricted number is bad, as mine is, there are three honest responses.
 
 I am not proposing a replacement coefficient. Prevalence-adjusted indices exist. The problem here is not the formula. It is the denominator. And note that excluding the affected rows instead of recoding them also moves the marginals of what remains, without the visibility of a cell sitting at 100 percent to tip you off.
 
-The memory system under test is open source, and the per-question verdicts and analysis code will be released alongside the paper. If you have a judge pipeline with a filter in front of it, the split in the first table takes about ten minutes to reproduce on your own data, and I would be curious what you find.
+The memory system under test, the benchmark harness and the judge code are open source at github.com/akshayaggarwal99/amp; the per-question verdicts and the decomposition script will follow with the paper. If you have a judge pipeline with a filter in front of it, the split in the first table takes about ten minutes to reproduce on your own data, and I would be curious what you find.
 
 AMP repository: https://github.com/akshayaggarwal99/amp
 Package: https://pypi.org/project/amp-memory/
